@@ -3,3 +3,6 @@ main
 
 # Ignore the thought_process file
 thought_process
+
+# Ignore the ppm files
+*.ppm
