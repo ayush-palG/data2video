@@ -1,0 +1,5 @@
+# Ignore the executable
+main
+
+# Ignore the thought_process file
+thought_process
