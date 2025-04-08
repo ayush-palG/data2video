@@ -270,7 +270,7 @@ void write_padded_output_to_file(const char *file_path)
   }
 
   uint64_t file_size = get_file_size(file);
-  size_t padding_size = 16 - (file_size + 8) % 16;
+  size_t padding_size = (16 - ((file_size + 8) % 16)) % 16;
 
   for (size_t i = 0; i < padding_size; ++i) {
     fputc(0, file);
