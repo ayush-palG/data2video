@@ -47,6 +47,8 @@ uint8_t inverse_sbox[256] = {0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xb
 uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 			       0x20, 0x40, 0x80, 0x1b, 0x36};
 
+void aes_block_encrypt(uint8_t *block, uint8_t *key);
+
 // multiplication in GF(2^8)
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
@@ -63,6 +65,32 @@ void add_round_key(uint8_t *block, uint8_t *key);
 #endif // AES_H_
 
 #ifdef AES_IMPLEMENTATION
+
+void aes_block_encrypt(uint8_t *block, uint8_t *key)
+{
+  uint8_t *round_keys = get_round_keys(key);
+  transpose_block(block);
+
+  //first round
+  add_round_key(block, round_keys);
+  
+  //intermediate rounds
+  for (size_t i = 1; i < KEY_ROUNDS-1; ++i) {
+    sub_bytes(block);
+    shift_rows(block);
+    mix_columns(block);
+    add_round_key(block, round_keys+(i*BLOCK_SIZE));
+  }
+  
+  //last round
+  sub_bytes(block);
+  shift_rows(block);
+  add_round_key(block, round_keys+(BLOCK_SIZE*(KEY_ROUNDS - 1)));
+
+  print_block(block);
+
+  free(round_keys);
+}
 
 uint8_t galois_mul2(uint8_t a)
 {
