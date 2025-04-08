@@ -54,6 +54,9 @@ uint8_t galois_mul3(uint8_t a);
 void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
+void add_round_key(uint8_t *block, uint8_t *key);
+
+uint8_t *get_round_keys(uint8_t *key);
 
 #endif // AES_H_
 
@@ -133,6 +136,13 @@ void mix_columns(uint8_t *block)
     }
   }
   free(ith_col);
+}
+
+void add_round_key(uint8_t *block, uint8_t *key)
+{
+  for (size_t i = 0; i < BLOCK_SIZE; ++i) {
+    block[i] ^= key[i];
+  }
 }
 
 uint8_t *get_round_keys(uint8_t *key)
