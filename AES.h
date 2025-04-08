@@ -6,6 +6,9 @@
 #include <stdint.h>
 
 
+#define BLOCK_GRID_SIZE 4
+#define BLOCK_SIZE      16
+
 uint8_t sbox[256] = {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 		     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 		     0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -45,6 +48,8 @@ uint8_t galois_mul(uint8_t a, uint8_t b);
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
+void shift_rows(void *block);
+
 #endif // AES_H_
 
 #ifdef AES_IMPLEMENTATION
@@ -81,6 +86,28 @@ uint8_t galois_mul2(uint8_t a)
 uint8_t galois_mul3(uint8_t a)
 {
   return a ^ galois_mul2(a);
+}
+
+
+void shift_rows(void *block)
+{
+  /*
+     1  5  9 13          1  5  9 13
+     2  6 10 14    ==\   6 10 14  2
+     3  7 11 15    ==/  11 15  3  7
+     4  8 12 16         16  4  8 12
+  */
+
+  uint8_t *block_8 = (uint8_t *) block;
+  for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
+    for (size_t k = 0; k < i; ++k) {
+      for (size_t j = 0; j < 3; ++j) {
+	uint8_t t = block_8[BLOCK_GRID_SIZE*i+j+1];
+	block_8[BLOCK_GRID_SIZE*i+j+1] = block_8[BLOCK_GRID_SIZE*i+j];
+	block_8[BLOCK_GRID_SIZE*i+j] = t;
+      }
+    }
+  }
 }
 
 #endif // AES_IMPLEMENTATION
