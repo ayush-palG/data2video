@@ -48,7 +48,6 @@ uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 			       0x20, 0x40, 0x80, 0x1b, 0x36};
 
 // multiplication in GF(2^8)
-uint8_t galois_mul(uint8_t a, uint8_t b);
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
@@ -59,27 +58,6 @@ void mix_columns(uint8_t *block);
 #endif // AES_H_
 
 #ifdef AES_IMPLEMENTATION
-
-uint8_t galois_mul(uint8_t a, uint8_t b)
-{
-  uint8_t p = 0x00;
-  
-  for (size_t i = 0; i < 8; ++i) {
-    if ((b & 1) != 0) {
-      p = p ^ a;
-    }
-
-    int bool = (a & 0x80) != 0;
-    a = a << 1; //shift left
-    
-    if (bool) {
-      a = a ^ 0x1B;
-    }
-    b = b >> 1; //right shift
-  }
-
-  return p;
-}
 
 uint8_t galois_mul2(uint8_t a)
 {
