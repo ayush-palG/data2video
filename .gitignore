@@ -1,0 +1,12 @@
+# Ignore the executable
+main
+
+# Ignore the thought_process file
+thought_process
+
+# Ignore the image files
+*.ppm
+*.png
+
+# Ignore the temporary files in temp folder
+/temp/*
