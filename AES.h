@@ -48,7 +48,8 @@ uint8_t galois_mul(uint8_t a, uint8_t b);
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
-void shift_rows(void *block);
+void shift_rows(uint8_t *block);
+void mix_columns(uint8_t *block);
 
 #endif // AES_H_
 
@@ -89,7 +90,7 @@ uint8_t galois_mul3(uint8_t a)
 }
 
 
-void shift_rows(void *block)
+void shift_rows(uint8_t *block)
 {
   /*
      1  5  9 13          1  5  9 13
@@ -98,16 +99,51 @@ void shift_rows(void *block)
      4  8 12 16         16  4  8 12
   */
 
-  uint8_t *block_8 = (uint8_t *) block;
   for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
     for (size_t k = 0; k < i; ++k) {
       for (size_t j = 0; j < 3; ++j) {
-	uint8_t t = block_8[BLOCK_GRID_SIZE*i+j+1];
-	block_8[BLOCK_GRID_SIZE*i+j+1] = block_8[BLOCK_GRID_SIZE*i+j];
-	block_8[BLOCK_GRID_SIZE*i+j] = t;
+	uint8_t t = block[BLOCK_GRID_SIZE*i+j+1];
+	block[BLOCK_GRID_SIZE*i+j+1] = block[BLOCK_GRID_SIZE*i+j];
+	block[BLOCK_GRID_SIZE*i+j] = t;
       }
     }
   }
+}
+
+void mix_columns(uint8_t *block)
+{
+  /*
+     1  5  9 13          1`  5`  9` 13`
+     2  6 10 14    ==\   2`  6` 10` 14`
+     3  7 11 15    ==/   3`  7` 11` 15`
+     4  8 12 16          4`  8` 12` 16`
+  */
+  
+  uint8_t arr[BLOCK_GRID_SIZE] = {2,3,1,1};
+  uint8_t *ith_col = malloc(sizeof(uint8_t) * BLOCK_GRID_SIZE);
+  
+  for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
+    for (size_t j = 0; j < BLOCK_GRID_SIZE; ++j) {
+      ith_col[j] = 0;
+    }
+    
+    for (size_t j = 0;  j < BLOCK_GRID_SIZE; ++j) {
+      for (size_t k = 0; k < BLOCK_GRID_SIZE; ++k) {
+	if (arr[(k-j)%BLOCK_GRID_SIZE] == 3) {
+	  ith_col[j] ^= galois_mul3(block[i + BLOCK_GRID_SIZE*k]);
+	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 2) {
+	  ith_col[j] ^= galois_mul2(block[i + BLOCK_GRID_SIZE*k]);
+	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 2) {
+	  ith_col[j] ^= block[i + BLOCK_GRID_SIZE*k];
+	}
+      }
+    }
+    
+    for (size_t j = 0; j < BLOCK_GRID_SIZE; ++j) {
+      block[i + BLOCK_GRID_SIZE*j] = ith_col[j];
+    }
+  }
+  free(ith_col);
 }
 
 #endif // AES_IMPLEMENTATION
