@@ -5,9 +5,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-
+#define BLOCK_SIZE 16
 #define BLOCK_GRID_SIZE 4
-#define BLOCK_SIZE      16
 
 uint8_t sbox[256] = {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 		     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -48,6 +47,7 @@ uint8_t galois_mul(uint8_t a, uint8_t b);
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
+void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
 
@@ -89,6 +89,12 @@ uint8_t galois_mul3(uint8_t a)
   return a ^ galois_mul2(a);
 }
 
+void sub_bytes(uint8_t *block)
+{
+  for (size_t i = 0; i < BLOCK_SIZE; ++i) {
+    block[i] = sbox[block[i]];
+  }
+}
 
 void shift_rows(uint8_t *block)
 {
