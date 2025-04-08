@@ -29,6 +29,7 @@ uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
 void initialize_aes_sbox(uint8_t sbox[256]);
+void initialize_aes_inverse_sbox(uint8_t sbox[256], uint8_t inverse_sbox[256]);
 
 #endif // AES_H_
 
@@ -93,5 +94,16 @@ void initialize_aes_sbox(uint8_t sbox[256])
   sbox[0] = 0x63;
 }
 
+void initialize_aes_inverse_sbox(uint8_t sbox[256], uint8_t inverse_sbox[256])
+{
+  for (size_t i = 0; i < 256; ++i) {
+    for (size_t j = 0; j < 256; ++j) {
+      if (sbox[j] == i) {
+	inverse_sbox[i] = j;
+	break;
+      }
+    }
+  }
+}
 
 #endif // AES_IMPLEMENTATION
