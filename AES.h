@@ -51,6 +51,7 @@ uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
+void print_block(const uint8_t *block);
 void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
@@ -73,6 +74,17 @@ uint8_t galois_mul2(uint8_t a)
 uint8_t galois_mul3(uint8_t a)
 {
   return a ^ galois_mul2(a);
+}
+
+void print_block(const uint8_t *block)
+{
+  for (size_t i = 0; i < 4; ++i) {
+    for (size_t j = 0; j < 4; ++j) {
+      printf("%02x ", block[4*i + j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
 }
 
 void sub_bytes(uint8_t *block)
