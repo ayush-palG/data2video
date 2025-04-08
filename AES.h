@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+#include <errno.h>
 
 #define BLOCK_SIZE 16
 #define BLOCK_GRID_SIZE 4
@@ -61,6 +63,9 @@ void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
 void add_round_key(uint8_t *block, uint8_t *key);
+
+uint64_t get_file_size(FILE *file);
+void write_padded_output_to_file(const char *file_path);
 
 #endif // AES_H_
 
@@ -133,6 +138,43 @@ void print_block(const uint8_t *block)
   printf("\n");
 }
 
+uint8_t *get_round_keys(uint8_t *key)
+{
+  uint8_t *round_keys = malloc(sizeof(uint8_t) * KEY_SIZE * KEY_ROUNDS);
+  
+  for (size_t i = 0; i < KEY_SIZE * KEY_ROUNDS; i += 4) {
+    if (i < KEY_SIZE) {
+      for (size_t j = 0; j < 4; ++j) {
+	round_keys[i+j] = key[i+j];
+      }
+    } else if (i >= KEY_SIZE && (i % KEY_SIZE) == 0) {
+      for (size_t j = 0; j < 4; ++j) {
+	round_keys[i+j] = round_keys[i+j - KEY_SIZE];
+
+	if (j == 3) {
+	  round_keys[i+j] ^= sbox[round_keys[i - 4]];
+	} else {
+	  round_keys[i+j] ^= sbox[round_keys[i - (4-j) + 1]];
+	}
+	
+	if (j == 0) {
+	  round_keys[i+j] ^= round_constants[(i / KEY_SIZE) - 1];
+	}
+      }
+    } else {
+      for (size_t j = 0; j < 4; ++j) {
+	round_keys[i+j] = round_keys[i+j - KEY_SIZE] ^ round_keys[i+j - 4];
+      }
+    }
+  }
+
+  for (size_t i = 0; i < KEY_ROUNDS; ++i) {
+    transpose_block(round_keys+(i*BLOCK_SIZE));
+  }
+
+  return round_keys;
+}
+
 void sub_bytes(uint8_t *block)
 {
   for (size_t i = 0; i < BLOCK_SIZE; ++i) {
@@ -203,41 +245,40 @@ void add_round_key(uint8_t *block, uint8_t *key)
   }
 }
 
-uint8_t *get_round_keys(uint8_t *key)
+uint64_t get_file_size(FILE *file)
 {
-  uint8_t *round_keys = malloc(sizeof(uint8_t) * KEY_SIZE * KEY_ROUNDS);
+  if (fseek(file, 0, SEEK_END) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  uint64_t file_size = ftell(file);
+  if (fseek(file, 0, SEEK_SET) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  return file_size;
+}
+
+void write_padded_output_to_file(const char *file_path)
+{
+  FILE *file = fopen(file_path, "ab");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open output file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+
+  uint64_t file_size = get_file_size(file);
+  size_t padding_size = 16 - (file_size + 8) % 16;
+
+  for (size_t i = 0; i < padding_size; ++i) {
+    fputc(0, file);
+  }
   
-  for (size_t i = 0; i < KEY_SIZE * KEY_ROUNDS; i += 4) {
-    if (i < KEY_SIZE) {
-      for (size_t j = 0; j < 4; ++j) {
-	round_keys[i+j] = key[i+j];
-      }
-    } else if (i >= KEY_SIZE && (i % KEY_SIZE) == 0) {
-      for (size_t j = 0; j < 4; ++j) {
-	round_keys[i+j] = round_keys[i+j - KEY_SIZE];
-
-	if (j == 3) {
-	  round_keys[i+j] ^= sbox[round_keys[i - 4]];
-	} else {
-	  round_keys[i+j] ^= sbox[round_keys[i - (4-j) + 1]];
-	}
-	
-	if (j == 0) {
-	  round_keys[i+j] ^= round_constants[(i / KEY_SIZE) - 1];
-	}
-      }
-    } else {
-      for (size_t j = 0; j < 4; ++j) {
-	round_keys[i+j] = round_keys[i+j - KEY_SIZE] ^ round_keys[i+j - 4];
-      }
-    }
-  }
-
-  for (size_t i = 0; i < KEY_ROUNDS; ++i) {
-    transpose_block(round_keys+(i*BLOCK_SIZE));
-  }
-
-  return round_keys;
+  fwrite(&file_size, sizeof(file_size), 1, file);
+  
+  fclose(file);
 }
 
 #endif // AES_IMPLEMENTATION
