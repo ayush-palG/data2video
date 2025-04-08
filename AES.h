@@ -51,13 +51,14 @@ uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
+void transpose_block(uint8_t *block);
 void print_block(const uint8_t *block);
+uint8_t *get_round_keys(uint8_t *key);
+
 void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
 void add_round_key(uint8_t *block, uint8_t *key);
-
-uint8_t *get_round_keys(uint8_t *key);
 
 #endif // AES_H_
 
@@ -74,6 +75,23 @@ uint8_t galois_mul2(uint8_t a)
 uint8_t galois_mul3(uint8_t a)
 {
   return a ^ galois_mul2(a);
+}
+
+void transpose_block(uint8_t *block)
+{
+  /*
+    0 1 2 3        0 4 8 c
+    4 5 6 7   ==\  1 5 9 d
+    8 9 a b   ==/  2 6 a e
+    c d e f        3 7 b f
+  */
+  for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
+    for (size_t j = i+1; j < BLOCK_GRID_SIZE; ++j) {
+      uint8_t t = block[i + 4*j];
+      block[i + 4*j] = block[4*i + j];
+      block[4*i + j] = t;
+    }
+  }
 }
 
 void print_block(const uint8_t *block)
@@ -137,7 +155,7 @@ void mix_columns(uint8_t *block)
 	  ith_col[j] ^= galois_mul3(block[i + BLOCK_GRID_SIZE*k]);
 	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 2) {
 	  ith_col[j] ^= galois_mul2(block[i + BLOCK_GRID_SIZE*k]);
-	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 2) {
+	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 1) {
 	  ith_col[j] ^= block[i + BLOCK_GRID_SIZE*k];
 	}
       }
@@ -185,6 +203,10 @@ uint8_t *get_round_keys(uint8_t *key)
 	round_keys[i+j] = round_keys[i+j - KEY_SIZE] ^ round_keys[i+j - 4];
       }
     }
+  }
+
+  for (size_t i = 0; i < KEY_ROUNDS; ++i) {
+    transpose_block(round_keys+(i*BLOCK_SIZE));
   }
 
   return round_keys;
