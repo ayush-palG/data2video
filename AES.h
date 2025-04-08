@@ -45,9 +45,6 @@ uint8_t galois_mul(uint8_t a, uint8_t b);
 uint8_t galois_mul2(uint8_t a);
 uint8_t galois_mul3(uint8_t a);
 
-void initialize_aes_sbox(uint8_t sbox[256]);
-void initialize_aes_inverse_sbox(uint8_t sbox[256], uint8_t inverse_sbox[256]);
-
 #endif // AES_H_
 
 #ifdef AES_IMPLEMENTATION
@@ -84,38 +81,6 @@ uint8_t galois_mul2(uint8_t a)
 uint8_t galois_mul3(uint8_t a)
 {
   return a ^ galois_mul2(a);
-}
-
-void initialize_aes_sbox(uint8_t sbox[256])
-{
-  uint8_t p = 1, q = 1;
-	
-  do {
-    p = p ^ (p << 1) ^ (p & 0x80 ? 0x1B : 0);
-
-    q ^= q << 1;
-    q ^= q << 2;
-    q ^= q << 4;
-    q ^= q & 0x80 ? 0x09 : 0;
-
-    uint8_t xformed = q ^ ROTL8(q, 1) ^ ROTL8(q, 2) ^ ROTL8(q, 3) ^ ROTL8(q, 4);
-
-    sbox[p] = xformed ^ 0x63;
-  } while (p != 1);
-
-  sbox[0] = 0x63;
-}
-
-void initialize_aes_inverse_sbox(uint8_t sbox[256], uint8_t inverse_sbox[256])
-{
-  for (size_t i = 0; i < 256; ++i) {
-    for (size_t j = 0; j < 256; ++j) {
-      if (sbox[j] == i) {
-	inverse_sbox[i] = j;
-	break;
-      }
-    }
-  }
 }
 
 #endif // AES_IMPLEMENTATION
