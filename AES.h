@@ -49,10 +49,15 @@ uint8_t inverse_sbox[256] = {0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xb
 uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 			       0x20, 0x40, 0x80, 0x1b, 0x36};
 
-uint8_t mix_columns_matrix[16] = {2, 3, 1, 1,
-				  1, 2, 3, 1,
-				  1, 1, 2, 3,
-				  3, 1, 1, 2};
+uint8_t mix_columns_matrix[16] = {0x02, 0x03, 0x01, 0x01,
+				  0x01, 0x02, 0x03, 0x01,
+				  0x01, 0x01, 0x02, 0x03,
+				  0x03, 0x01, 0x01, 0x02};
+
+uint8_t inverse_mix_columns_matrix[16] = {0x0e, 0x0b, 0x0d, 0x09,
+					  0x09, 0x0e, 0x0b, 0x0d,
+					  0x0d, 0x09, 0x0e, 0x0b,
+					  0x0b, 0x0d, 0x09, 0x0e};
 
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
 
@@ -65,10 +70,16 @@ void transpose_block(uint8_t *block);
 void print_block(const uint8_t *block);
 uint8_t *get_round_keys(uint8_t *key);
 
+// CIPHER
 void sub_bytes(uint8_t *block);
 void shift_rows(uint8_t *block);
 void mix_columns(uint8_t *block);
 void add_round_key(uint8_t *block, uint8_t *key);
+
+// INVERSE-CIPHER
+void inverse_sub_bytes(uint8_t *block);
+void inverse_shift_rows(uint8_t *block);
+void inverse_mix_columns(uint8_t *block);
 
 uint64_t get_file_size(FILE *file);
 void write_padded_output_to_file(const char *file_path);
@@ -265,6 +276,48 @@ void add_round_key(uint8_t *block, uint8_t *key)
   for (size_t i = 0; i < BLOCK_SIZE; ++i) {
     block[i] ^= key[i];
   }
+}
+
+void inverse_sub_bytes(uint8_t *block)
+{
+  for (size_t i = 0; i < BLOCK_SIZE; ++i) {
+    block[i] = inverse_sbox[block[i]];
+  }
+}
+
+void inverse_shift_rows(uint8_t *block)
+{
+  for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
+    for (size_t k = 0; k < BLOCK_GRID_SIZE - i; ++k) {
+      for (size_t j = 0; j < 3; ++j) {
+	uint8_t t = block[BLOCK_GRID_SIZE*i+j+1];
+	block[BLOCK_GRID_SIZE*i+j+1] = block[BLOCK_GRID_SIZE*i+j];
+	block[BLOCK_GRID_SIZE*i+j] = t;
+      }
+    }
+  }
+}
+
+void inverse_mix_columns(uint8_t *block)
+{
+  uint8_t *ith_col = malloc(sizeof(uint8_t) * BLOCK_GRID_SIZE);
+  
+  for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
+    for (size_t j = 0; j < BLOCK_GRID_SIZE; ++j) {
+      ith_col[j] = 0;
+    }
+    
+    for (size_t j = 0;  j < BLOCK_GRID_SIZE; ++j) {
+      for (size_t k = 0; k < BLOCK_GRID_SIZE; ++k) {
+	ith_col[j] ^= galois_mul(block[i + BLOCK_GRID_SIZE*k], inverse_mix_columns_matrix[4*j + k]);
+      }
+    }
+    
+    for (size_t j = 0; j < BLOCK_GRID_SIZE; ++j) {
+      block[i + BLOCK_GRID_SIZE*j] = ith_col[j];
+    }
+  }
+  free(ith_col); 
 }
 
 uint64_t get_file_size(FILE *file)
