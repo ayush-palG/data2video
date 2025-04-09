@@ -60,6 +60,7 @@ uint8_t inverse_mix_columns_matrix[16] = {0x0e, 0x0b, 0x0d, 0x09,
 					  0x0b, 0x0d, 0x09, 0x0e};
 
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
+void aes_block_decrypt(uint8_t *block, uint8_t *round_keys);
 
 // multiplication in GF(2^8)
 uint8_t galois_mul(uint8_t num, uint8_t mul);
@@ -90,6 +91,8 @@ void write_padded_output_to_file(const char *file_path);
 
 {
   uint8_t *round_keys = get_round_keys(key);
+void aes_block_encrypt(uint8_t *block, uint8_t *round_keys)
+{
   transpose_block(block);
 
   //first round
@@ -107,6 +110,29 @@ void write_padded_output_to_file(const char *file_path);
   sub_bytes(block);
   shift_rows(block);
   add_round_key(block, round_keys+(BLOCK_SIZE*(KEY_ROUNDS - 1)));
+
+  transpose_block(block);
+}
+
+void aes_block_decrypt(uint8_t *block, uint8_t *round_keys)
+{
+  transpose_block(block);
+
+  //first round
+  add_round_key(block, round_keys+(BLOCK_SIZE*(KEY_ROUNDS - 1)));
+  
+  //intermediate rounds
+  for (size_t i = KEY_ROUNDS - 2; i > 0; --i) {
+    inverse_shift_rows(block);
+    inverse_sub_bytes(block);
+    add_round_key(block, round_keys+(i*BLOCK_SIZE));
+    inverse_mix_columns(block);
+  }
+  
+  //last round
+  inverse_shift_rows(block);
+  inverse_sub_bytes(block);
+  add_round_key(block, round_keys);
 
   transpose_block(block);
 }
