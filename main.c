@@ -13,7 +13,16 @@ int main(void)
 		     0xab, 0xf7, 0x15, 0x88,
 		     0x09, 0xcf, 0x4f, 0x3c};
 
-  aes_block_encrypt(block, key);
+  uint8_t *round_keys = get_round_keys(key);
+  
+  print_block(block);
+  aes_block_encrypt(block, round_keys);
+
+  print_block(block);
+  aes_block_decrypt(block, round_keys);
+  print_block(block);
+    
+  free(round_keys);
   
   return 0;
 }
