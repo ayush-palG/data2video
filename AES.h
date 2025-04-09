@@ -49,7 +49,12 @@ uint8_t inverse_sbox[256] = {0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xb
 uint8_t round_constants[10] = {0x01, 0x02, 0x04, 0x08, 0x10,
 			       0x20, 0x40, 0x80, 0x1b, 0x36};
 
-void aes_block_encrypt(uint8_t *block, uint8_t *key);
+uint8_t mix_columns_matrix[16] = {2, 3, 1, 1,
+				  1, 2, 3, 1,
+				  1, 1, 2, 3,
+				  3, 1, 1, 2};
+
+void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
 
 // multiplication in GF(2^8)
 uint8_t galois_mul2(uint8_t a);
@@ -71,7 +76,6 @@ void write_padded_output_to_file(const char *file_path);
 
 #ifdef AES_IMPLEMENTATION
 
-void aes_block_encrypt(uint8_t *block, uint8_t *key)
 {
   uint8_t *round_keys = get_round_keys(key);
   transpose_block(block);
@@ -92,9 +96,7 @@ void aes_block_encrypt(uint8_t *block, uint8_t *key)
   shift_rows(block);
   add_round_key(block, round_keys+(BLOCK_SIZE*(KEY_ROUNDS - 1)));
 
-  print_block(block);
-
-  free(round_keys);
+  transpose_block(block);
 }
 
 uint8_t galois_mul2(uint8_t a)
@@ -210,8 +212,6 @@ void mix_columns(uint8_t *block)
      3  7 11 15    ==/   3`  7` 11` 15`
      4  8 12 16          4`  8` 12` 16`
   */
-  
-  uint8_t arr[BLOCK_GRID_SIZE] = {2,3,1,1};
   uint8_t *ith_col = malloc(sizeof(uint8_t) * BLOCK_GRID_SIZE);
   
   for (size_t i = 0; i < BLOCK_GRID_SIZE; ++i) {
@@ -221,11 +221,11 @@ void mix_columns(uint8_t *block)
     
     for (size_t j = 0;  j < BLOCK_GRID_SIZE; ++j) {
       for (size_t k = 0; k < BLOCK_GRID_SIZE; ++k) {
-	if (arr[(k-j)%BLOCK_GRID_SIZE] == 3) {
+	if (mix_columns_matrix[4*j + k] == 3) {
 	  ith_col[j] ^= galois_mul3(block[i + BLOCK_GRID_SIZE*k]);
-	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 2) {
+	} else if (mix_columns_matrix[4*j + k] == 2) {
 	  ith_col[j] ^= galois_mul2(block[i + BLOCK_GRID_SIZE*k]);
-	} else if (arr[(k-j)%BLOCK_GRID_SIZE] == 1) {
+	} else if (mix_columns_matrix[4*j + k] == 1) {
 	  ith_col[j] ^= block[i + BLOCK_GRID_SIZE*k];
 	}
       }
@@ -265,7 +265,7 @@ void write_padded_output_to_file(const char *file_path)
 {
   FILE *file = fopen(file_path, "ab");
   if (file == NULL) {
-    fprintf(stderr, "ERROR: could not open output file %s: %s\n", file_path, strerror(errno));
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
     exit(1);
   }
 
