@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <unistd.h>
 
 #define BLOCK_SIZE 16
 #define BLOCK_GRID_SIZE 4
@@ -70,6 +71,7 @@ uint8_t galois_mul(uint8_t num, uint8_t mul);
 uint8_t galois_mul2(uint8_t num);
 uint8_t galois_mul3(uint8_t num);
 
+// Miscellaneous
 void transpose_block(uint8_t *block);
 void print_block(const uint8_t *block);
 uint8_t *get_round_keys(uint8_t *key);
@@ -85,8 +87,10 @@ void inverse_sub_bytes(uint8_t *block);
 void inverse_shift_rows(uint8_t *block);
 void inverse_mix_columns(uint8_t *block);
 
+// File-manipulating
 uint64_t get_file_size(FILE *file);
-void write_padded_output_to_file(const char *file_path);
+void add_padding_to_file(const char *file_path);
+void remove_padding_from_file(const char *file_path);
 
 #endif // AES_H_
 
@@ -94,7 +98,7 @@ void write_padded_output_to_file(const char *file_path);
 
 void aes_encrypt(const char *plain_file_path, const char *encrypted_file_path, uint8_t *key)
 {
-  write_padded_output_to_file(plain_file_path);
+  add_padding_to_file(plain_file_path);
   
   FILE *plain_file = fopen(plain_file_path, "rb");
   if (plain_file == NULL) {
@@ -167,6 +171,8 @@ void aes_decrypt(const char *encrypted_file_path, const char *plain_file_path, u
   free(round_keys);
   fclose(encrypted_file);
   fclose(plain_file);
+
+  remove_padding_from_file(plain_file_path);
 }
 
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys)
@@ -440,7 +446,7 @@ uint64_t get_file_size(FILE *file)
   return file_size;
 }
 
-void write_padded_output_to_file(const char *file_path)
+void add_padding_to_file(const char *file_path)
 {
   FILE *file = fopen(file_path, "ab");
   if (file == NULL) {
@@ -456,6 +462,28 @@ void write_padded_output_to_file(const char *file_path)
   }
   
   fwrite(&file_size, sizeof(file_size), 1, file);
+  
+  fclose(file);
+}
+
+void remove_padding_from_file(const char *file_path)
+{
+  FILE *file = fopen(file_path, "rb+");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+
+  uint64_t file_size;
+  if (fseek(file, -8, SEEK_END) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  fread(&file_size, sizeof(file_size), 1, file);
+
+  // TODO: POSIX only as of now, maybe I should write to another file and then rename that file
+  truncate(file_path, file_size);
   
   fclose(file);
 }
