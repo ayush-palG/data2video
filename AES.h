@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #define BLOCK_SIZE 16
 #define BLOCK_GRID_SIZE 4
@@ -60,6 +61,7 @@ uint8_t inverse_mix_columns_matrix[16] = {0x0e, 0x0b, 0x0d, 0x09,
 					  0x0b, 0x0d, 0x09, 0x0e};
 
 void aes_encrypt(const char *input_file_path, const char *output_file_path, uint8_t *key);
+void aes_decrypt(const char *encrypted_file_path, const char *plain_file_path, uint8_t *key);
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
 void aes_block_decrypt(uint8_t *block, uint8_t *round_keys);
 
@@ -127,6 +129,44 @@ void aes_encrypt(const char *plain_file_path, const char *encrypted_file_path, u
   free(round_keys);
   fclose(plain_file);
   fclose(encrypted_file);
+}
+
+void aes_decrypt(const char *encrypted_file_path, const char *plain_file_path, uint8_t *key)
+{
+  FILE *encrypted_file = fopen(encrypted_file_path, "rb");
+  if (encrypted_file == NULL) {
+    fprintf(stderr, "ERROR: could not open input file %s: %s\n", encrypted_file_path, strerror(errno));
+    exit(1);
+  }
+  assert(get_file_size(encrypted_file) % BLOCK_SIZE == 0);
+
+  FILE *plain_file = fopen(plain_file_path, "wb");
+  if (plain_file == NULL) {
+    fprintf(stderr, "ERROR: could not open output file %s: %s\n", plain_file_path, strerror(errno));
+    exit(1);
+  }
+
+  uint8_t *round_keys = get_round_keys(key);
+  uint8_t *block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
+
+  while (fread(block, sizeof(*block), BLOCK_SIZE, encrypted_file) == BLOCK_SIZE) {
+    aes_block_decrypt(block, round_keys);
+    fwrite(block, sizeof(*block), BLOCK_SIZE, plain_file);
+    if (ferror(plain_file)) {
+      fprintf(stderr, "ERROR: could not write to output file %s: %s\n", encrypted_file_path, strerror(errno));
+      exit(1);
+    }
+  }
+
+  if (!feof(encrypted_file)) {
+    fprintf(stderr, "ERROR: could not properly read the input file %s: %s\n", plain_file_path, strerror(errno));
+    exit(1);
+  }
+
+  free(block);
+  free(round_keys);
+  fclose(encrypted_file);
+  fclose(plain_file);
 }
 
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys)
