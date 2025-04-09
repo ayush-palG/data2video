@@ -57,8 +57,9 @@ uint8_t mix_columns_matrix[16] = {2, 3, 1, 1,
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
 
 // multiplication in GF(2^8)
-uint8_t galois_mul2(uint8_t a);
-uint8_t galois_mul3(uint8_t a);
+uint8_t galois_mul(uint8_t num, uint8_t mul);
+uint8_t galois_mul2(uint8_t num);
+uint8_t galois_mul3(uint8_t num);
 
 void transpose_block(uint8_t *block);
 void print_block(const uint8_t *block);
@@ -99,17 +100,38 @@ void write_padded_output_to_file(const char *file_path);
   transpose_block(block);
 }
 
-uint8_t galois_mul2(uint8_t a)
+uint8_t galois_mul(uint8_t num, uint8_t mul)
 {
-  if ((a & 0x80) == 0x80) {
-    return (a << 1) ^ 0x1b;
-  }
-  return (a << 1); 
+  uint8_t p = 0x00;
+   
+   for (size_t i = 0; i < 8; ++i) {
+     if ((mul & 1) != 0) {
+       p = p ^ num;
+     }
+ 
+     int bool = (num & 0x80) != 0;
+     num = num << 1; //shift left
+     
+     if (bool) {
+       num = num ^ 0x1B;
+     }
+     mul = mul >> 1; //right shift
+   }
+ 
+   return p;
 }
 
-uint8_t galois_mul3(uint8_t a)
+uint8_t galois_mul2(uint8_t num)
 {
-  return a ^ galois_mul2(a);
+  if ((num & 0x80) == 0x80) {
+    return (num << 1) ^ 0x1b;
+  }
+  return (num << 1); 
+}
+
+uint8_t galois_mul3(uint8_t num)
+{
+  return num ^ galois_mul2(num);
 }
 
 void transpose_block(uint8_t *block)
