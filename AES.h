@@ -59,6 +59,7 @@ uint8_t inverse_mix_columns_matrix[16] = {0x0e, 0x0b, 0x0d, 0x09,
 					  0x0d, 0x09, 0x0e, 0x0b,
 					  0x0b, 0x0d, 0x09, 0x0e};
 
+void aes_encrypt(const char *input_file_path, const char *output_file_path, uint8_t *key);
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys);
 void aes_block_decrypt(uint8_t *block, uint8_t *round_keys);
 
@@ -89,8 +90,45 @@ void write_padded_output_to_file(const char *file_path);
 
 #ifdef AES_IMPLEMENTATION
 
+void aes_encrypt(const char *plain_file_path, const char *encrypted_file_path, uint8_t *key)
 {
+  write_padded_output_to_file(plain_file_path);
+  
+  FILE *plain_file = fopen(plain_file_path, "rb");
+  if (plain_file == NULL) {
+    fprintf(stderr, "ERROR: could not open input file %s: %s\n", plain_file_path, strerror(errno));
+    exit(1);
+  }
+
+  FILE *encrypted_file = fopen(encrypted_file_path, "wb");
+  if (encrypted_file == NULL) {
+    fprintf(stderr, "ERROR: could not open output file %s: %s\n", encrypted_file_path, strerror(errno));
+    exit(1);
+  }
+
   uint8_t *round_keys = get_round_keys(key);
+  uint8_t *block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
+
+  while (fread(block, sizeof(*block), BLOCK_SIZE, plain_file) == BLOCK_SIZE) {
+    aes_block_encrypt(block, round_keys);
+    fwrite(block, sizeof(*block), BLOCK_SIZE, encrypted_file);
+    if (ferror(encrypted_file)) {
+      fprintf(stderr, "ERROR: could not write to output file %s: %s\n", encrypted_file_path, strerror(errno));
+      exit(1);
+    }
+  }
+
+  if (!feof(plain_file)) {
+    fprintf(stderr, "ERROR: could not properly read the input file %s: %s\n", plain_file_path, strerror(errno));
+    exit(1);
+  }
+
+  free(block);
+  free(round_keys);
+  fclose(plain_file);
+  fclose(encrypted_file);
+}
+
 void aes_block_encrypt(uint8_t *block, uint8_t *round_keys)
 {
   transpose_block(block);
