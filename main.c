@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
+#define AES_IMPLEMENTATION
+#include "./AES.h"
 
 int main(void)
-{
+{  
   return 0;
 }
