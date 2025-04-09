@@ -1,5 +1,5 @@
-#define AES_IMPLEMENTATION
-#include "./AES.h"
+#define COMPRESSION_IMPLEMENTATION
+#include "./compression.h"
 
 int main(void)
 {  
