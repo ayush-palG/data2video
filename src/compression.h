@@ -1,16 +1,12 @@
+#ifdef COMPRESSION_IMPLEMENTATION
+
+#define HUFFMAN_IMPLEMENTATION
+
+#endif // COMPRESSION_IMPLEMENTATION
+
 #ifndef COMPRESSION_H_
 #define COMPRESSION_H_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-
-
+#include "./compression_algorithms/huffman_coding.h"
 
 #endif // COMPRESSION_H_
-
-#ifdef COMPRESSION_IMPLEMENTATION
-
-
-
-#endif // COMPRESSION_IMPLEMENTATION
