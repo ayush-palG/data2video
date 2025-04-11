@@ -42,32 +42,29 @@ typedef struct node {
   struct node* right;
 } Node;
 
-/*
-  Thought Process
-  - Initialise an Array of Freq structure of size 2^8(256; number of possible values of a byte)
-    and each index represent the corresponding byte and each Freq type would be BYTE and count = 0
-  - Read the original input byte-by-byte and increase the count of the frequency by 1 of that freq_arr[byte].count += 1;
-  - Remove those Freq whose count == 0
-    Count the number of Freq having count > 0 and initialize a new array of Freq of that many numbers
-    and only insert those Freq whose count > 0 and after that deallocate the initial Freq array
-  - Sort them according to their count and their ASCII value
-  - Now, we have to create the huffman tree using this Freq array
-  - 
-*/
 
+// Frequency
+void print_freq(const Freq *freq);
 void print_freq_list(const Freq_List *fl);
 void get_useful_freq_arr(Freq_List *fl);
 void sort_freq(Freq_List *fl, size_t index);
-void get_freq_from_file(const char *file_path);
+void sort_freq_list(Freq_List *fl);
+void get_freq_from_file(const char *file_path, Freq_List *fl);
+
 
 #endif // HUFFMAN_H_
 
 #ifdef HUFFMAN_IMPLEMENTATION
 
+void print_freq(const Freq *freq)
+{
+  printf("%02x %c: %u\n", freq->byte, freq->byte, freq->count);
+}
+
 void print_freq_list(const Freq_List *fl)
 {
   for (size_t i = 0; i < fl->size; ++i) {
-    printf("%02x %c: %u\n", fl->arr[i].byte, fl->arr[i].byte, fl->arr[i].count);
+    print_freq(&fl->arr[i]);
   }
   printf("\n");
 }
@@ -101,7 +98,7 @@ void sort_freq(Freq_List *fl, size_t index)
   assert(index < fl->size);
   
   for (size_t j = index; j > 0; --j) {
-    if (fl->arr[j].count >= fl->arr[j-1].count) {
+    if (fl->arr[j].count < fl->arr[j-1].count) {
       break;
     } else {
       Freq temp_freq = fl->arr[j];
@@ -111,26 +108,39 @@ void sort_freq(Freq_List *fl, size_t index)
   }
 }
 
-void get_freq_from_file(const char *file_path)
+void sort_freq_list(Freq_List *fl)
+{
+  for (size_t i = 0; i < fl->size; ++i) {
+    sort_freq(fl, i);
+  }
+}
+
+void get_freq_from_file(const char *file_path, Freq_List *fl)
 {
   FILE *file = fopen(file_path, "rb");
   if (file == NULL) {
     fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
     exit(1);
   }
+  
+  fl->arr = (Freq *) malloc(sizeof(Freq) * U8_CAPACITY);
+  fl->size = U8_CAPACITY;
 
-  Freq_List fl = {0};
-  fl.arr = (Freq *) malloc(sizeof(Freq) * U8_CAPACITY);
-  fl.size = U8_CAPACITY;
-
-  for (size_t i = 0; i < fl.size; ++i) {
-    fl.arr[i].byte = (uint8_t) i;
-    fl.arr[i].count = 0;
+  for (size_t i = 0; i < fl->size; ++i) {
+    fl->arr[i].byte = (uint8_t) i;
+    fl->arr[i].count = 0;
   }
 
   char ch;
   while ((ch = fgetc(file)) != EOF) {
-    fl.arr[(uint8_t) ch].count += 1;
+    fl->arr[(uint8_t) ch].count += 1;
+  }
+
+  get_useful_freq_arr(fl);
+
+  sort_freq_list(fl);
+}
+
   }
 
   get_useful_freq_arr(&fl);
