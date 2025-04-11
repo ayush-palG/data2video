@@ -27,6 +27,7 @@
 
 #define U8_CAPACITY 258
 
+// Frequency
 typedef struct {
   uint8_t byte;
   uint32_t count;
@@ -37,6 +38,14 @@ typedef struct {
   size_t size;
 } Freq_List;
 
+void print_freq(const Freq *freq);
+void print_freq_list(const Freq_List *fl);
+void get_useful_freq_arr(Freq_List *fl);
+void sort_freq(Freq_List *fl, size_t index);
+void sort_freq_list(Freq_List *fl);
+void get_freq_from_file(const char *file_path, Freq_List *fl);
+
+// Node
 typedef struct node {
   Freq freq;
   struct node* left;
@@ -48,15 +57,6 @@ typedef struct {
   size_t size;
 } Node_List;
 
-// Frequency
-void print_freq(const Freq *freq);
-void print_freq_list(const Freq_List *fl);
-void get_useful_freq_arr(Freq_List *fl);
-void sort_freq(Freq_List *fl, size_t index);
-void sort_freq_list(Freq_List *fl);
-void get_freq_from_file(const char *file_path, Freq_List *fl);
-
-// Node
 void print_node(Node *node, int level);
 void freq_to_node(Freq_List *fl, Node_List *nl);
 void sort_node(Node_List *nl, size_t index);
@@ -65,7 +65,40 @@ bool node_eq(const Node *node1, const Node *node2);
 int find_node_in_node_list(const Node_List *nl, const Node *node);
 void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl);
 
-Node get_huffman_tree(const char *file_path);
+// Huffman-Table
+/*
+  Approach #1
+  - Introduce a new structure (Bits) of members uint64_t word and size_t count,
+    here word would store the data and count would tell us how many initial bits are of our use.
+  - To create the huffman table from huffman tree, maybe we have to use this Bits structure.
+
+  Approach #2
+  - {(uint8_t) byte, const char *binary_value}
+  - For Huffman Table use the above structure, for byte we have the character in our input file and
+    for the binary value we would use '<' for 0 and '>' for 1.
+  - I'm hoping that this approach would be easier as compared to bit-manipulation for both table and compression
+*/
+typedef struct {
+  char *str;
+  size_t size;
+} String_View;
+
+typedef struct {
+  uint8_t byte;
+  char *value;
+} Table_Item;
+
+typedef struct {
+  Table_Item *items;
+  size_t size;
+} Table;
+
+void print_table(const Table *table);
+void free_table(Table *table);
+void in_order(String_View *sv, Node *node, Table *table);
+void node_to_table(Node *node, Table *table);
+
+void get_huffman_table_from_file(const char *file_path, Tabe *table);
 
 #endif // HUFFMAN_H_
 
@@ -213,7 +246,8 @@ void sort_node_list(Node_List *nl)
 
 bool node_eq(const Node *node1, const Node *node2)
 {
-  return (bool) (node1->freq.count == node2->freq.count && node1->freq.byte == node2->freq.byte);
+  return (bool) ((node1->freq.count == node2->freq.count && node1->freq.byte == node2->freq.byte) &&
+		 (node1->left == node2->left && node1->right == node2->right));
 }
 
 int find_node_in_node_list(const Node_List *nl, const Node *node)
@@ -243,7 +277,64 @@ void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl)
   temp_nl->size -= 2;
 }
 
-Node get_huffman_tree(const char *file_path)
+void print_table(const Table *table)
+{
+  for (size_t i = 0; i < table->size; ++i) {
+    printf("%02x %c %8s: ", table->items[i].byte, table->items[i].byte, table->items[i].value);
+    for (size_t j = 0; table->items[i].value[j] != '\0'; ++j) {
+      if (table->items[i].value[j] == '<') {
+	printf("0");
+      } else if (table->items[i].value[j] == '>') {
+	printf("1");
+      }
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
+
+void free_table(Table *table)
+{
+  for (size_t i = 0; i < table->size; ++i) {
+    free(table->items[i].value);
+  }
+  free(table->items);
+}
+
+void in_order(String_View *sv, Node *node, Table *table)
+{
+  if (node->left == NULL && node->right == NULL) {
+    char *value = (char *) malloc(sizeof(char) * sv->size + 1);
+    value[sv->size] = '\0';
+    memcpy(value, sv->str, sv->size);
+    printf("%s\n", value);
+    table->items[table->size++] = (Table_Item) {
+      .byte = node->freq.byte,
+      .value = value,
+    };
+    return;
+  }
+
+  sv->str[sv->size++] = '<';
+  in_order(sv, node->left, table);
+  sv->size -= 1;
+  
+  sv->str[sv->size++] = '>';
+  in_order(sv, node->right, table);
+  sv->size -= 1;
+}
+
+void node_to_table(Node *node, Table *table)
+{
+  char *str = (char *) malloc(sizeof(char) * U8_CAPACITY);
+  String_View sv = {.str = str, .size = 0};
+
+  in_order(&sv, node, table);
+
+  free(str);
+}
+
+void get_huffman_table_from_file(const char *file_path, Tabe *table)
 {
   Freq_List fl = {0};
   get_freq_from_file(file_path, &fl);
@@ -260,10 +351,13 @@ Node get_huffman_tree(const char *file_path)
 
   print_node(&temp_nl.arr[0], 0);
 
+  table->items = (Table_Item *) malloc(sizeof(Table_Item) * fl.size);
+  node_to_table(&temp_nl.arr[0], table);
+  print_table(table);
+  
   free(char_nl.arr);
   free(temp_nl.arr);
-  
-  return (Node) {0};
+  free_table(table);
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
