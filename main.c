@@ -3,7 +3,7 @@
 
 int main(void)
 {
-  get_freq_from_file("input");
+  get_huffman_tree("input");
   
   return 0;
 }

@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #define U8_CAPACITY 258
 
@@ -42,6 +43,10 @@ typedef struct node {
   struct node* right;
 } Node;
 
+typedef struct {
+  Node *arr;
+  size_t size;
+} Node_List;
 
 // Frequency
 void print_freq(const Freq *freq);
@@ -51,6 +56,16 @@ void sort_freq(Freq_List *fl, size_t index);
 void sort_freq_list(Freq_List *fl);
 void get_freq_from_file(const char *file_path, Freq_List *fl);
 
+// Node
+void print_node(Node *node, int level);
+void freq_to_node(Freq_List *fl, Node_List *nl);
+void sort_node(Node_List *nl, size_t index);
+void sort_node_list(Node_List *nl);
+bool node_eq(const Node *node1, const Node *node2);
+int find_node_in_node_list(const Node_List *nl, const Node *node);
+void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl);
+
+Node get_huffman_tree(const char *file_path);
 
 #endif // HUFFMAN_H_
 
@@ -141,14 +156,114 @@ void get_freq_from_file(const char *file_path, Freq_List *fl)
   sort_freq_list(fl);
 }
 
+void print_node(Node *node, int level)
+{
+  if (node == NULL)
+    return;
+  for (int i = 0; i < level; i++)
+    printf(i == level - 1 ? "|-" : "  ");
+  printf("%02x %c: %u\n", node->freq.byte, node->freq.byte, node->freq.count);
+  print_node(node->left, level + 1);
+  print_node(node->right, level + 1);
+}
+
+void freq_to_node(Freq_List *fl, Node_List *nl)
+{
+  nl->arr = (Node *) malloc(sizeof(Node) * fl->size * 2);
+  nl->size = fl->size;
+  
+  for (size_t i = 0; i < fl->size; ++i) {
+    nl->arr[i] = (Node) {
+      .freq = fl->arr[i],
+      .left = NULL,
+      .right = NULL,
+    };
   }
 
-  get_useful_freq_arr(&fl);
-
-  for (size_t i = 0; i < fl.size; ++i) {
-    sort_freq(&fl, i);
+  for (size_t i = fl->size; i < fl->size * 2; ++i) {
+    nl->arr[i] = (Node) {
+      .freq = (Freq) {0},
+      .left = NULL,
+      .right = NULL,
+    };
   }
-  print_freq_list(&fl);
+}
+
+void sort_node(Node_List *nl, size_t index)
+{
+  assert(index < nl->size);
+  
+  for (size_t j = index; j > 0; --j) {
+    if (nl->arr[j].freq.count < nl->arr[j-1].freq.count) {
+      break;
+    } else {
+      Node temp_node = nl->arr[j];
+      nl->arr[j] = nl->arr[j-1];
+      nl->arr[j-1] = temp_node;
+    }
+  }
+}
+
+void sort_node_list(Node_List *nl)
+{
+  for (size_t i = 0; i < nl->size; ++i) {
+    sort_node(nl, i);
+  }
+}
+
+bool node_eq(const Node *node1, const Node *node2)
+{
+  return (bool) (node1->freq.count == node2->freq.count && node1->freq.byte == node2->freq.byte);
+}
+
+int find_node_in_node_list(const Node_List *nl, const Node *node)
+{
+  for (size_t i = 0; i < nl->size; ++i) {
+    if (node_eq(&nl->arr[i], node)) return i;
+  }
+  return -1;
+}
+
+void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl)
+{
+  assert(temp_nl->size > 1);
+
+  Node *node1 = &temp_nl->arr[temp_nl->size-1];
+  Node *node2 = &temp_nl->arr[temp_nl->size-2];
+
+  Node new_node = {
+    .freq = (Freq) {.byte = 0, .count = node1->freq.count + node2->freq.count},
+    .left = &char_nl->arr[find_node_in_node_list(char_nl, node1)],
+    .right = &char_nl->arr[find_node_in_node_list(char_nl, node2)],
+  };
+
+  temp_nl->arr[temp_nl->size++] = new_node;
+  char_nl->arr[char_nl->size++] = new_node;
+  sort_node(temp_nl, temp_nl->size-1);
+  temp_nl->size -= 2;
+}
+
+Node get_huffman_tree(const char *file_path)
+{
+  Freq_List fl = {0};
+  get_freq_from_file(file_path, &fl);
+
+  Node_List char_nl = {0};
+  Node_List temp_nl = {0};
+  freq_to_node(&fl, &char_nl);
+  freq_to_node(&fl, &temp_nl);
+  free(fl.arr);
+
+  while (temp_nl.size > 1) {
+    add_node_to_tree(&char_nl, &temp_nl);
+  }
+
+  print_node(&temp_nl.arr[0], 0);
+
+  free(char_nl.arr);
+  free(temp_nl.arr);
+  
+  return (Node) {0};
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
