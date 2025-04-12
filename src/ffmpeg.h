@@ -16,6 +16,7 @@
 
 void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t frames);
 uint64_t get_file_size(const char *file_path);
+const char *get_file_name_from_path(const char *file_path);
 void write_header_info_to_file(const char *input_file_path, const char *output_file_path);
 void file_to_video(const char *file_path, const char *video_path);
 
@@ -67,24 +68,35 @@ uint64_t get_file_size(const char *file_path)
   return file_size;
 }
 
-void write_header_info_to_file(const char *input_file_path, const char *output_file_path)
+const char *get_file_name_from_path(const char *file_path)
 {
-  size_t slash_index = strlen(input_file_path);
-  for (size_t i = strlen(input_file_path) - 1; i < strlen(input_file_path); --i) {
-    if (input_file_path[i] == '/') {
+  size_t slash_index = strlen(file_path);
+  for (size_t i = strlen(file_path) - 1; i < strlen(file_path); --i) {
+    if (file_path[i] == '/') {
       slash_index = i+1;
       break;
     }
   }
 
-  char file_name[1024] = {0};
-  uint16_t file_name_length;
-  if (slash_index < strlen(input_file_path)) {
-    file_name_length = sprintf(file_name, "%s", input_file_path+slash_index);
+  char buffer[1024] = {0};
+  uint16_t buffer_length;
+  if (slash_index < strlen(file_path)) {
+    buffer_length = sprintf(buffer, "%s", file_path+slash_index);
   } else {
-    file_name_length = sprintf(file_name, "%s", input_file_path);
+    buffer_length = sprintf(buffer, "%s", file_path);
   }
 
+  char *file_name = (char *) malloc(sizeof(char) * buffer_length + 1);
+  file_name[buffer_length] = '\0';
+  memcpy(file_name, buffer, buffer_length);
+
+  return file_name;
+}
+
+void write_header_info_to_file(const char *input_file_path, const char *output_file_path)
+{
+  const char *file_name = get_file_name_from_path(input_file_path);
+  uint16_t file_name_length = (uint16_t) strlen(file_name);
   uint64_t file_size = get_file_size(input_file_path);
 
   FILE *input_file = fopen(input_file_path, "rb");
@@ -114,8 +126,11 @@ void write_header_info_to_file(const char *input_file_path, const char *output_f
 
 void file_to_video(const char *input_path, const char *video_path)
 {
+  const char *temp_path = "./output.bin"
+  write_header_info_to_file(input_path, temp_path);
+  
   char buffer[512];
-  sprintf(buffer, "ffmpeg -f rawvideo -pix_fmt rgb24 -s:v 1280x720 -r 24 -i %s -c:v libx264 %s", input_path, video_path);
+  sprintf(buffer, "ffmpeg -f rawvideo -pix_fmt rgb24 -s:v 1280x720 -r 24 -i %s -c:v libx264 %s", temp_path, video_path);
   system(buffer);
 
   sprintf(buffer, "cp %s /mnt/p/ && rm %s", video_path, video_path);
