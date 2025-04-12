@@ -1,7 +1,8 @@
 /*
   Huffman Coding Specifications
   * Header Information:
-    - total number of bytes storing the header, i.e., the topology of the Huffman coding tree, as a 4-byte unsigned integer.
+    X total number of bits storing the topology of the Huffman coding tree, as a 4-byte unsigned integer.
+    - total number of distinct characters in the uncompressed file, as a 1-byte unsigned integer.
     - total number of characters in the uncompressed file, as a 8-byte unsigned integer.
     - Huffman tree structure
       . To store the tree at the beginning of the file, we use a post-order traversal, writing each node visited.
@@ -101,7 +102,9 @@ void get_huffman_tree_from_file(const char *file_path, Node *tree);
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_table_from_tree(Node *tree, Table *table);
 
-void get_huffman_table_from_file(const char *file_path, Tabe *table);
+void post_order(String_View *sv, Node *tree);
+String_View get_header_info_from_tree(Node *tree);
+
 
 #endif // HUFFMAN_H_
 
@@ -373,6 +376,33 @@ void get_huffman_table_from_tree(Node *tree, Table *table)
   
   table->items = (Table_Item *) malloc(sizeof(Table_Item) * leaf_node_count);
   node_to_table(tree, table);
+}
+
+void post_order(String_View *sv, Node *tree)
+{
+  if (tree->left == NULL && tree->right == NULL) {
+    sv->str[sv->size++] = '1';
+    sv->str[sv->size++] = tree->freq.byte;
+    return;
+  }
+
+  post_order(sv, tree->left);
+  sv->str[sv->size++] = '0';
+  sv->size -= 1;
+  
+  post_order(sv, tree->right);
+  sv->str[sv->size++] = '0';
+}
+
+String_View get_header_info_from_tree(Node *tree)
+{
+  char *str = (char *) malloc(sizeof(char) * U8_CAPACITY * 10);
+  String_View sv = {.str = str, .size = 0};
+
+  post_order(&sv, tree);
+  sv.str[sv.size++] = '0';
+  
+  return sv;
 }
 
 }
