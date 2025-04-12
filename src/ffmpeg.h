@@ -15,6 +15,7 @@
 */
 
 void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t frames);
+void file_to_video(const char *file_path, const char *video_path);
 
 #endif // FFMPEG_H_
 
@@ -40,5 +41,14 @@ void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t f
   fclose(file);
 }
 
+void file_to_video(const char *input_path, const char *video_path)
+{
+  char buffer[512];
+  sprintf(buffer, "ffmpeg -f rawvideo -pix_fmt rgb24 -s:v 1280x720 -r 24 -i %s -c:v libx264 %s", input_path, video_path);
+  system(buffer);
+
+  sprintf(buffer, "cp %s /mnt/p/ && rm %s", video_path, video_path);
+  system(buffer);
+}
 
 #endif // FFMPEG_IMPLEMENTATION
