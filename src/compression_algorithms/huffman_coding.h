@@ -97,6 +97,9 @@ void print_table(const Table *table);
 void free_table(Table *table);
 void in_order(String_View *sv, Node *node, Table *table);
 void node_to_table(Node *node, Table *table);
+void get_huffman_tree_from_file(const char *file_path, Node *tree);
+void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
+void get_huffman_table_from_tree(Node *tree, Table *table);
 
 void get_huffman_table_from_file(const char *file_path, Tabe *table);
 
@@ -204,7 +207,8 @@ void freq_to_node(Freq_List *fl, Node_List *nl)
 {
   nl->arr = (Node *) malloc(sizeof(Node) * fl->size * 2);
   nl->size = fl->size;
-  
+
+  // TODO: add the sort_node() here, so that we could remove the sort_freq()
   for (size_t i = 0; i < fl->size; ++i) {
     nl->arr[i] = (Node) {
       .freq = fl->arr[i],
@@ -307,7 +311,6 @@ void in_order(String_View *sv, Node *node, Table *table)
     char *value = (char *) malloc(sizeof(char) * sv->size + 1);
     value[sv->size] = '\0';
     memcpy(value, sv->str, sv->size);
-    printf("%s\n", value);
     table->items[table->size++] = (Table_Item) {
       .byte = node->freq.byte,
       .value = value,
@@ -334,7 +337,7 @@ void node_to_table(Node *node, Table *table)
   free(str);
 }
 
-void get_huffman_table_from_file(const char *file_path, Tabe *table)
+void get_huffman_tree_from_file(const char *file_path, Node *tree)
 {
   Freq_List fl = {0};
   get_freq_from_file(file_path, &fl);
@@ -349,15 +352,29 @@ void get_huffman_table_from_file(const char *file_path, Tabe *table)
     add_node_to_tree(&char_nl, &temp_nl);
   }
 
-  print_node(&temp_nl.arr[0], 0);
-
-  table->items = (Table_Item *) malloc(sizeof(Table_Item) * fl.size);
-  node_to_table(&temp_nl.arr[0], table);
-  print_table(table);
-  
-  free(char_nl.arr);
+  *tree = temp_nl.arr[0];
   free(temp_nl.arr);
-  free_table(table);
+}
+
+void get_leaf_node_count_in_tree(Node *tree, size_t *counter)
+{
+  if (tree->left == NULL && tree->right == NULL) {
+    *counter += 1;
+    return;
+  }
+  get_leaf_node_count_in_tree(tree->left, counter);
+  get_leaf_node_count_in_tree(tree->right, counter);
+}
+
+void get_huffman_table_from_tree(Node *tree, Table *table)
+{
+  size_t leaf_node_count = 0;
+  get_leaf_node_count_in_tree(tree, &leaf_node_count);
+  
+  table->items = (Table_Item *) malloc(sizeof(Table_Item) * leaf_node_count);
+  node_to_table(tree, table);
+}
+
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
