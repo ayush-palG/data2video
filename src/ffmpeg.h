@@ -18,7 +18,7 @@ void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t f
 uint64_t get_file_size(const char *file_path);
 const char *get_file_name_from_path(const char *file_path);
 void write_header_info_to_file(const char *input_file_path, const char *output_file_path);
-void file_to_video(const char *file_path, const char *video_path);
+void file_to_video(const char *input_path, const char *video_path);
 
 #endif // FFMPEG_H_
 
@@ -126,7 +126,7 @@ void write_header_info_to_file(const char *input_file_path, const char *output_f
 
 void file_to_video(const char *input_path, const char *video_path)
 {
-  const char *temp_path = "./output.bin"
+  const char *temp_path = "./output.bin";
   write_header_info_to_file(input_path, temp_path);
   
   char buffer[512];
