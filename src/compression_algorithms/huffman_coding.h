@@ -106,6 +106,7 @@ uint64_t get_file_size(FILE *file);
 void post_order(String_View *sv, Node *tree);
 String_View get_header_info_from_tree(Node *tree);
 
+void huffman_encode(const char *plain_file_path, const char *encoded_file_path);
 
 #endif // HUFFMAN_H_
 
@@ -443,6 +444,33 @@ int sv_to_byte(const String_View *sv, uint8_t *byte)
   return 0;
 }
 
+void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
+{
+  FILE *plain_file = fopen(plain_file_path, "rb");
+  if (plain_file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", plain_file_path, strerror(errno));
+    exit(1);
+  }
+
+  FILE *encoded_file = fopen(encoded_file_path, "wb");
+  if (encoded_file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", encoded_file_path, strerror(errno));
+    exit(1);
+  }
+
+  Node tree = {0};
+  get_huffman_tree_from_file(plain_file_path, &tree);
+
+  Table table = {0};
+  
+  get_huffman_table_from_tree(&tree, &table);
+
+  String_View header_info = get_header_info_from_tree(&tree);
+  printf("%zu: %.*s\n", header_info.size, (int) header_info.size, header_info.str);
+
+  fprintf(encoded_file, "%zu%lu", header_info.size, get_file_size(plain_file));
+  // Write the header_info into encoded_file
+  free(header_info.str);
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
