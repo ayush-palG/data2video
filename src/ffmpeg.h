@@ -15,6 +15,8 @@
 */
 
 void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t frames);
+uint64_t get_file_size(const char *file_path);
+void write_header_info_to_file(const char *input_file_path, const char *output_file_path);
 void file_to_video(const char *file_path, const char *video_path);
 
 #endif // FFMPEG_H_
@@ -39,6 +41,75 @@ void write_solid_color_to_file(const char *file_path, uint32_t color, uint32_t f
   }
 
   fclose(file);
+}
+
+uint64_t get_file_size(const char *file_path)
+{
+  FILE *file = fopen(file_path, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+  
+  if (fseek(file, 0, SEEK_END) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  uint64_t file_size = ftell(file);
+  if (fseek(file, 0, SEEK_SET) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  fclose(file);
+
+  return file_size;
+}
+
+void write_header_info_to_file(const char *input_file_path, const char *output_file_path)
+{
+  size_t slash_index = strlen(input_file_path);
+  for (size_t i = strlen(input_file_path) - 1; i < strlen(input_file_path); --i) {
+    if (input_file_path[i] == '/') {
+      slash_index = i+1;
+      break;
+    }
+  }
+
+  char file_name[1024] = {0};
+  uint16_t file_name_length;
+  if (slash_index < strlen(input_file_path)) {
+    file_name_length = sprintf(file_name, "%s", input_file_path+slash_index);
+  } else {
+    file_name_length = sprintf(file_name, "%s", input_file_path);
+  }
+
+  uint64_t file_size = get_file_size(input_file_path);
+
+  FILE *input_file = fopen(input_file_path, "rb");
+  if (input_file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", input_file_path, strerror(errno));
+    exit(1);
+  }
+  
+  FILE *output_file = fopen(output_file_path, "wb");
+  if (output_file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", output_file_path, strerror(errno));
+    exit(1);
+  }
+
+  fwrite(&file_name_length, sizeof(file_name_length), 1, output_file);
+  fprintf(output_file, "%s", file_name);
+  fwrite(&file_size, sizeof(file_size), 1, output_file);
+
+  char ch;
+  while ((ch = fgetc(input_file)) != EOF) {
+    fputc(ch, output_file);
+  }
+
+  fclose(input_file);
+  fclose(output_file);
 }
 
 void file_to_video(const char *input_path, const char *video_path)
