@@ -102,6 +102,7 @@ void get_huffman_tree_from_file(const char *file_path, Node *tree);
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_table_from_tree(Node *tree, Table *table);
 
+uint64_t get_file_size(FILE *file);
 void post_order(String_View *sv, Node *tree);
 String_View get_header_info_from_tree(Node *tree);
 
@@ -376,6 +377,24 @@ void get_huffman_table_from_tree(Node *tree, Table *table)
   
   table->items = (Table_Item *) malloc(sizeof(Table_Item) * leaf_node_count);
   node_to_table(tree, table);
+}
+
+// TODO: See if we pass the FILE * or the file_path to get
+//       the file_size as we assume FILE * is "rb" mode
+uint64_t get_file_size(FILE *file)
+{
+  if (fseek(file, 0, SEEK_END) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  uint64_t file_size = ftell(file);
+  if (fseek(file, 0, SEEK_SET) < 0) {
+    fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
+    exit(1);
+  }
+
+  return file_size;
 }
 
 void post_order(String_View *sv, Node *tree)
