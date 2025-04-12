@@ -424,6 +424,25 @@ String_View get_header_info_from_tree(Node *tree)
   return sv;
 }
 
+void byte_to_sv(String_View *sv, uint8_t byte)
+{
+  for (size_t i = 0; i < 8; ++i) {
+    sv->str[sv->size++] = (((byte << i) & 0x80) >> 7) + '0';
+  }
+}
+
+int sv_to_byte(const String_View *sv, uint8_t *byte)
+{
+  if (sv->size >= 8) {
+    for (size_t i = 0; i < 8; ++i) {
+      *byte = (*byte << 1) | (sv->str[i] - '0');
+    }
+    return 1;
+  }
+
+  return 0;
+}
+
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
