@@ -40,8 +40,6 @@ typedef struct {
 } Freq_List;
 
 void get_useful_freq_arr(Freq_List *fl);
-void sort_freq(Freq_List *fl, size_t index);
-void sort_freq_list(Freq_List *fl);
 void get_freq_from_file(const char *file_path, Freq_List *fl);
 
 // Node
@@ -52,17 +50,16 @@ typedef struct node {
 } Node;
 
 typedef struct {
-  Node *arr;
+  Node **node_ptrs;
   size_t size;
 } Node_List;
 
 void print_node(Node *node, int level);
-void freq_to_node(Freq_List *fl, Node_List *nl);
+Node *node_alloc(Freq freq, Node *left, Node *right);
+void node_list_add(Node_List *nl, Node *node_ptr);
+Node_List *freq_list_to_node_list(Freq_List *fl);
 void sort_node(Node_List *nl, size_t index);
-void sort_node_list(Node_List *nl);
-bool node_eq(const Node *node1, const Node *node2);
-int find_node_in_node_list(const Node_List *nl, const Node *node);
-void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl);
+void get_huffman_tree_from_file(const char *file_path, Node *tree);
 
 // Huffman-Table
 /*
@@ -96,7 +93,6 @@ void print_table(const Table *table);
 void free_table(Table *table);
 void in_order(String_View *sv, Node *node, Table *table);
 void node_to_table(Node *node, Table *table);
-void get_huffman_tree_from_file(const char *file_path, Node *tree);
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_table_from_tree(Node *tree, Table *table);
 
@@ -134,28 +130,6 @@ void get_useful_freq_arr(Freq_List *fl)
   fl->size = useful_freq_count;
 }
 
-void sort_freq(Freq_List *fl, size_t index)
-{
-  assert(index < fl->size);
-  
-  for (size_t j = index; j > 0; --j) {
-    if (fl->arr[j].count < fl->arr[j-1].count) {
-      break;
-    } else {
-      Freq temp_freq = fl->arr[j];
-      fl->arr[j] = fl->arr[j-1];
-      fl->arr[j-1] = temp_freq;
-    }
-  }
-}
-
-void sort_freq_list(Freq_List *fl)
-{
-  for (size_t i = 0; i < fl->size; ++i) {
-    sort_freq(fl, i);
-  }
-}
-
 void get_freq_from_file(const char *file_path, Freq_List *fl)
 {
   FILE *file = fopen(file_path, "rb");
@@ -178,8 +152,6 @@ void get_freq_from_file(const char *file_path, Freq_List *fl)
   }
 
   get_useful_freq_arr(fl);
-
-  sort_freq_list(fl);
 }
 
 void print_node(Node *node, int level)
@@ -193,87 +165,81 @@ void print_node(Node *node, int level)
   print_node(node->right, level + 1);
 }
 
-// TODO: Whenever added a new node to the Node List, allocate memory for
-//       each and every node and add the pointer to that node into Node List.
-//       That way, we don't need to have two Separate Node_List.
-//       To free the tree, we traverse the tree and free all the nodes.
-//       I have to change all of node related functions for that.
-void freq_to_node(Freq_List *fl, Node_List *nl)
-{
-  nl->arr = (Node *) malloc(sizeof(Node) * fl->size * 2);
-  nl->size = fl->size;
-
-  // TODO: add the sort_node() here, so that we could remove the sort_freq()
-  for (size_t i = 0; i < fl->size; ++i) {
-    nl->arr[i] = (Node) {
-      .freq = fl->arr[i],
-      .left = NULL,
-      .right = NULL,
-    };
-  }
-
-  for (size_t i = fl->size; i < fl->size * 2; ++i) {
-    nl->arr[i] = (Node) {
-      .freq = (Freq) {0},
-      .left = NULL,
-      .right = NULL,
-    };
-  }
-}
-
 void sort_node(Node_List *nl, size_t index)
 {
   assert(index < nl->size);
   
   for (size_t j = index; j > 0; --j) {
-    if (nl->arr[j].freq.count < nl->arr[j-1].freq.count) {
+    if (nl->node_ptrs[j]->freq.count < nl->node_ptrs[j-1]->freq.count) {
       break;
     } else {
-      Node temp_node = nl->arr[j];
-      nl->arr[j] = nl->arr[j-1];
-      nl->arr[j-1] = temp_node;
+      Node *temp_node_ptr = nl->node_ptrs[j];
+      nl->node_ptrs[j] = nl->node_ptrs[j-1];
+      nl->node_ptrs[j-1] = temp_node_ptr;
     }
   }
 }
 
-void sort_node_list(Node_List *nl)
+Node *node_alloc(Freq freq, Node *left, Node *right)
 {
-  for (size_t i = 0; i < nl->size; ++i) {
-    sort_node(nl, i);
-  }
-}
-
-bool node_eq(const Node *node1, const Node *node2)
-{
-  return (bool) ((node1->freq.count == node2->freq.count && node1->freq.byte == node2->freq.byte) &&
-		 (node1->left == node2->left && node1->right == node2->right));
-}
-
-int find_node_in_node_list(const Node_List *nl, const Node *node)
-{
-  for (size_t i = 0; i < nl->size; ++i) {
-    if (node_eq(&nl->arr[i], node)) return i;
-  }
-  return -1;
-}
-
-void add_node_to_tree(Node_List *char_nl, Node_List *temp_nl)
-{
-  assert(temp_nl->size > 1);
-
-  Node *node1 = &temp_nl->arr[temp_nl->size-1];
-  Node *node2 = &temp_nl->arr[temp_nl->size-2];
-
-  Node new_node = {
-    .freq = (Freq) {.byte = 0, .count = node1->freq.count + node2->freq.count},
-    .left = &char_nl->arr[find_node_in_node_list(char_nl, node1)],
-    .right = &char_nl->arr[find_node_in_node_list(char_nl, node2)],
+  Node *node = (Node *) malloc(sizeof(Node));
+  *node = (Node) {
+    .freq = freq,
+    .left = left,
+    .right = right
   };
+  return node;
+}
 
-  temp_nl->arr[temp_nl->size++] = new_node;
-  char_nl->arr[char_nl->size++] = new_node;
-  sort_node(temp_nl, temp_nl->size-1);
-  temp_nl->size -= 2;
+void node_list_add(Node_List *nl, Node *node_ptr)
+{
+  nl->node_ptrs[nl->size++] = node_ptr;
+  sort_node(nl, nl->size - 1);
+}
+
+Node_List *freq_list_to_node_list(Freq_List *fl)
+{
+  Node_List *nl = (Node_List *) malloc(sizeof(Node_List));
+  nl->node_ptrs = (Node **) malloc(sizeof(Node *) * (fl->size + 1));
+  nl->size = 0;
+
+  for (size_t i = 0; i < fl->size; ++i) {
+    node_list_add(nl, node_alloc(fl->arr[i], NULL, NULL));
+  }
+  return nl;
+}
+
+void node_list_free(Node_List *nl)
+{
+  for (size_t i = 0; i < nl->size; ++i) {
+    free(nl->node_ptrs[i]);
+  }
+  free(nl->node_ptrs);
+  free(nl);
+}
+
+void get_huffman_tree_from_file(const char *file_path, Node *tree)
+{
+  Freq_List fl = {0};
+  get_freq_from_file(file_path, &fl);
+
+  Node_List *nl = freq_list_to_node_list(&fl);
+  free(fl.arr);
+
+  while (nl->size > 1) {
+    Freq freq = {
+      .byte = 0,
+      .count = nl->node_ptrs[nl->size - 1]->freq.count + nl->node_ptrs[nl->size - 2]->freq.count,
+    };
+    Node *node = node_alloc(freq, nl->node_ptrs[nl->size-1], nl->node_ptrs[nl->size-2]);
+    node_list_add(nl, node);
+    nl->size -= 2;
+  }
+
+  *tree = *(nl->node_ptrs[0]);  
+  node_list_free(nl);
+}
+
 }
 
 void print_table(const Table *table)
@@ -330,25 +296,6 @@ void node_to_table(Node *node, Table *table)
   in_order(&sv, node, table);
 
   free(str);
-}
-
-void get_huffman_tree_from_file(const char *file_path, Node *tree)
-{
-  Freq_List fl = {0};
-  get_freq_from_file(file_path, &fl);
-
-  Node_List char_nl = {0};
-  Node_List temp_nl = {0};
-  freq_to_node(&fl, &char_nl);
-  freq_to_node(&fl, &temp_nl);
-  free(fl.arr);
-
-  while (temp_nl.size > 1) {
-    add_node_to_tree(&char_nl, &temp_nl);
-  }
-
-  *tree = temp_nl.arr[0];
-  free(temp_nl.arr);
 }
 
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter)
