@@ -39,8 +39,6 @@ typedef struct {
   size_t size;
 } Freq_List;
 
-void print_freq(const Freq *freq);
-void print_freq_list(const Freq_List *fl);
 void get_useful_freq_arr(Freq_List *fl);
 void sort_freq(Freq_List *fl, size_t index);
 void sort_freq_list(Freq_List *fl);
@@ -111,19 +109,6 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path);
 #endif // HUFFMAN_H_
 
 #ifdef HUFFMAN_IMPLEMENTATION
-
-void print_freq(const Freq *freq)
-{
-  printf("%02x %c: %u\n", freq->byte, freq->byte, freq->count);
-}
-
-void print_freq_list(const Freq_List *fl)
-{
-  for (size_t i = 0; i < fl->size; ++i) {
-    print_freq(&fl->arr[i]);
-  }
-  printf("\n");
-}
 
 void get_useful_freq_arr(Freq_List *fl)
 {
