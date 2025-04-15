@@ -193,6 +193,11 @@ void print_node(Node *node, int level)
   print_node(node->right, level + 1);
 }
 
+// TODO: Whenever added a new node to the Node List, allocate memory for
+//       each and every node and add the pointer to that node into Node List.
+//       That way, we don't need to have two Separate Node_List.
+//       To free the tree, we traverse the tree and free all the nodes.
+//       I have to change all of node related functions for that.
 void freq_to_node(Freq_List *fl, Node_List *nl)
 {
   nl->arr = (Node *) malloc(sizeof(Node) * fl->size * 2);
