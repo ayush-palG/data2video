@@ -70,6 +70,7 @@ typedef struct {
 } String_View;
 
 // TODO: maybe introduce sv_from_cstr and sv_to_cstr (especially for value in Table_Item)
+void sv_alloc(String_View *sv, size_t size);
 void sv_concat_cstr(String_View *sv, const char *cstr);
 void sv_from_byte(String_View *sv, uint8_t byte);
 bool sv_to_byte(const String_View *sv, uint8_t *byte);
@@ -240,6 +241,14 @@ void get_huffman_tree_from_file(const char *file_path, Node *tree)
   free(nl->node_ptrs[0]);
   free(nl->node_ptrs);
   free(nl);
+}
+
+void sv_alloc(String_View *sv, size_t size)
+{
+  *sv = (String_View) {
+    .str = (char *) malloc(sizeof(char) * size),
+    .size = 0,
+  };
 }
 
 void sv_concat(String_View *dst, String_View *src)
