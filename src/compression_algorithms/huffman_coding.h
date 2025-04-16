@@ -78,7 +78,7 @@ bool sv_to_byte(const String_View *sv, uint8_t *byte);
 // Huffman Table
 typedef struct {
   uint8_t byte;
-  char *value;
+  String_View value;
 } Table_Item;
 
 typedef struct {
@@ -281,7 +281,8 @@ bool sv_to_byte(const String_View *sv, uint8_t *byte)
 void print_table(const Table *table)
 {
   for (size_t i = 0; i < table->size; ++i) {
-    printf("%02x %c: %8s\n", table->items[i].byte, table->items[i].byte, table->items[i].value);
+    printf("%02x %c: %.*s\n", table->items[i].byte, table->items[i].byte,
+	   (int) table->items[i].value.size, table->items[i].value.str);
   }
   printf("\n");
 }
@@ -289,7 +290,7 @@ void print_table(const Table *table)
 void free_table(Table *table)
 {
   for (size_t i = 0; i < table->size; ++i) {
-    free(table->items[i].value);
+    free(table->items[i].value.str);
   }
   free(table->items);
 }
@@ -319,14 +320,11 @@ void in_order(String_View *sv, Node *tree, Table *table)
 
 void tree_to_table(Node *tree, Table *table)
 {
-  char *str = (char *) malloc(sizeof(char) * U8_CAPACITY);
-  String_View sv = {.str = str, .size = 0};
+  String_View sv = {0};
+  sv_alloc(&sv, U8_CAPACITY);
 
-  in_order(&sv, node, table);
-
-  free(str);
-}
-
+  in_order(&sv, tree, table);
+  free(sv.str);
 }
 
 void get_huffman_table_from_tree(Node *tree, Table *table)
