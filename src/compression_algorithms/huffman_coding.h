@@ -284,13 +284,12 @@ void sv_concat_sv(String_View *dst, String_View *src)
 
 void sv_concat_file(FILE *file, String_View *src)
 {
+  sv_rev_bytes(src);
   uint8_t byte = 0;
   while (src->size >= U8_SIZE) {
     sv_to_byte(src, &byte);
-    printf("%zu: %02x\n", src->size, byte);
     fwrite(&byte, sizeof(byte), 1, file);
   }
-  printf("\n");
 }
 
 void sv_concat_file_path(const char *file_path, String_View *src)
@@ -317,7 +316,7 @@ bool sv_to_byte(String_View *sv, uint8_t *byte)
 {
   if (sv->size >= U8_SIZE) {
     *byte = 0;
-    for (size_t i = 0; i < U8_SIZE; ++i) {
+    for (size_t i = sv->size-U8_SIZE; i < sv->size; ++i) {
       assert(sv->str[i] == '0' || sv->str[i] == '1');
       *byte = (*byte << 1) | (sv->str[i] - '0');
     }
@@ -412,7 +411,7 @@ void post_order(String_View *sv, Node *tree)
 {
   if (tree->left == NULL && tree->right == NULL) {
     sv->str[sv->size++] = '1';
-    sv->str[sv->size++] = tree->freq.byte;
+    sv_from_byte(sv, tree->freq.byte);
     return;
   }
 
@@ -431,6 +430,26 @@ String_View get_header_info_from_tree(Node *tree)
   sv.str[sv.size++] = '0';
   
   return sv;
+}
+
+void print_file(const char *file_path)
+{
+  FILE *file = fopen(file_path, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+
+  uint8_t ch;
+  uint64_t file_size = get_file_size(file_path);
+  for (size_t i = 0; i < file_size; ++i) {
+    ch = fgetc(file);
+    printf("%02x ", ch);
+    if ((i+1) % 16 == 0) printf("\n");
+  }
+  printf("\n");
+
+  fclose(file);
 }
 
 // Complete the huffman encode using sv functions sv_to_byte, sv_from_byte, sv_concat
@@ -455,11 +474,25 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
   get_huffman_table_from_tree(&tree, &table);
 
   String_View header_info = get_header_info_from_tree(&tree);
-  printf("%zu: %.*s\n", header_info.size, (int) header_info.size, header_info.str);
-
-  fprintf(encoded_file, "%zu%lu", header_info.size, get_file_size(plain_file_path));
+  uint8_t header_size = header_info.size / 10;
+  uint64_t plain_file_size = get_file_size(plain_file_path);
+  
+  fwrite(&header_size, sizeof(uint8_t), 1, encoded_file);
+  fwrite(&plain_file_size, sizeof(uint64_t), 1, encoded_file);
+  
+  fclose(encoded_file);
+  
   // Write the header_info into encoded_file
+  sv_concat_file_path(encoded_file_path, &header_info);
   free(header_info.str);
+  print_file(encoded_file_path);
+
+  for (size_t i = 0; i < table.size; ++i) {
+    free(table.items[i].value.str);
+  }
+  free(table.items);
+
+  fclose(plain_file);
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
