@@ -91,7 +91,7 @@ void node_to_table(Node *node, Table *table);
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_table_from_tree(Node *tree, Table *table);
 
-uint64_t get_file_size(FILE *file);
+uint64_t get_file_size(const char *file_path);
 void post_order(String_View *sv, Node *tree);
 String_View get_header_info_from_tree(Node *tree);
 
@@ -327,10 +327,14 @@ void get_huffman_table_from_tree(Node *tree, Table *table)
   node_to_table(tree, table);
 }
 
-// TODO: See if we pass the FILE * or the file_path to get
-//       the file_size as we assume FILE * is "rb" mode
-uint64_t get_file_size(FILE *file)
+uint64_t get_file_size(const char *file_path)
 {
+  FILE *file = fopen(file_path, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+  
   if (fseek(file, 0, SEEK_END) < 0) {
     fprintf(stderr, "ERROR: could not read file %s\n", strerror(errno));
     exit(1);
@@ -394,7 +398,7 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
   String_View header_info = get_header_info_from_tree(&tree);
   printf("%zu: %.*s\n", header_info.size, (int) header_info.size, header_info.str);
 
-  fprintf(encoded_file, "%zu%lu", header_info.size, get_file_size(plain_file));
+  fprintf(encoded_file, "%zu%lu", header_info.size, get_file_size(plain_file_path));
   // Write the header_info into encoded_file
   free(header_info.str);
 }
