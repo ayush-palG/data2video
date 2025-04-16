@@ -70,7 +70,6 @@ typedef struct {
   size_t size;
 } String_View;
 
-// TODO: maybe introduce sv_from_cstr and sv_to_cstr (especially for value in Table_Item)
 void sv_alloc(String_View *sv, size_t size);
 void sv_rev(String_View *sv, size_t start_pos, size_t end_pos);
 void sv_rev_bytes(String_View *sv);
