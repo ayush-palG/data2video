@@ -60,6 +60,7 @@ Node *node_alloc(Freq freq, Node *left, Node *right);
 void node_list_add(Node_List *nl, Node *node_ptr);
 Node_List *freq_list_to_node_list(Freq_List *fl);
 void sort_node(Node_List *nl, size_t index);
+void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_tree_from_file(const char *file_path, Node *tree);
 
 // String View
@@ -207,6 +208,16 @@ Node_List *freq_list_to_node_list(Freq_List *fl)
   return nl;
 }
 
+void get_leaf_node_count_in_tree(Node *tree, size_t *counter)
+{
+  if (tree->left == NULL && tree->right == NULL) {
+    *counter += 1;
+    return;
+  }
+  get_leaf_node_count_in_tree(tree->left, counter);
+  get_leaf_node_count_in_tree(tree->right, counter);
+}
+
 void get_huffman_tree_from_file(const char *file_path, Node *tree)
 {
   Freq_List fl = {0};
@@ -308,14 +319,6 @@ void node_to_table(Node *node, Table *table)
   free(str);
 }
 
-void get_leaf_node_count_in_tree(Node *tree, size_t *counter)
-{
-  if (tree->left == NULL && tree->right == NULL) {
-    *counter += 1;
-    return;
-  }
-  get_leaf_node_count_in_tree(tree->left, counter);
-  get_leaf_node_count_in_tree(tree->right, counter);
 }
 
 void get_huffman_table_from_tree(Node *tree, Table *table)
