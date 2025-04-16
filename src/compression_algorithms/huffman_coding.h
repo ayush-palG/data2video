@@ -475,23 +475,38 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
   String_View header_info = get_header_info_from_tree(&tree);
   uint8_t header_size = header_info.size / 10;
   uint64_t plain_file_size = get_file_size(plain_file_path);
-  
+
+  // Write the header_info into encoded_file
   fwrite(&header_size, sizeof(uint8_t), 1, encoded_file);
   fwrite(&plain_file_size, sizeof(uint64_t), 1, encoded_file);
-  
-  fclose(encoded_file);
-  
-  // Write the header_info into encoded_file
-  sv_concat_file_path(encoded_file_path, &header_info);
+  sv_concat_file(encoded_file, &header_info);
   free(header_info.str);
-  print_file(encoded_file_path);
 
+  String_View sv = {0};
+  sv_alloc(&sv, U8_CAPACITY * 10);
+  for (size_t i = 0; i < plain_file_size; ++i) {
+    // iterate over plain_file and get the corresponding table_value for the current character
+    uint8_t ch = fgetc(plain_file);
+    for (size_t j = 0; j < table.size; ++j) {
+      if (table.items[j].byte == ch) {
+	sv_concat_sv(&sv, &(table.items[j].value));
+	break;
+      }
+    }
+    sv_concat_file(encoded_file, &sv);
+  }
+  while (sv.size < U8_SIZE) {
+    sv.str[sv.size++] = '0';
+  }
+  sv_concat_file(encoded_file, &sv);
+  
   for (size_t i = 0; i < table.size; ++i) {
     free(table.items[i].value.str);
   }
   free(table.items);
 
   fclose(plain_file);
+  fclose(encoded_file);
 }
 
 #endif // HUFFMAN_IMPLEMENTATION
