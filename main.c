@@ -3,9 +3,7 @@
 
 int main(void)
 {
-  Node tree = {0};
-  get_huffman_tree_from_file("input", &tree);
-  print_node(&tree, 0);
+  huffman_encode("input", "output");
   
   return 0;
 }

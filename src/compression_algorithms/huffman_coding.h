@@ -9,7 +9,7 @@
         When you encounter a leaf node, you write a 1 followed by the ASCII character of the leaf node.
 	When you encounter a non-leaf node, you write a 0. To indicate the end of the Huffman
 	coding tree, we write another 0.
-      . Size of Huffman tree structure should be of 8*n bits(n bytes), fill the remaining (if any) bits with zero
+      X Size of Huffman tree structure should be of 8*n bits(n bytes), fill the remaining (if any) bits with zero
   * Then add the compressed text
   * At last add the pseudo-EOF, we have number of characters in original file , we could only decode that many
     characters and ignore any more bits (if any).
@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#define U8_SIZE 8
 #define U8_CAPACITY 258
 #define SV_CAPACITY (U8_CAPACITY * 2)
 
@@ -71,9 +72,13 @@ typedef struct {
 
 // TODO: maybe introduce sv_from_cstr and sv_to_cstr (especially for value in Table_Item)
 void sv_alloc(String_View *sv, size_t size);
-void sv_concat_cstr(String_View *sv, const char *cstr);
+void sv_rev(String_View *sv, size_t start_pos, size_t end_pos);
+void sv_rev_bytes(String_View *sv);
+void sv_concat_sv(String_View *dst, String_View *src);
+void sv_concat_file(FILE *file, String_View *src);
+void sv_concat_file_path(const char *file_path, String_View *src);
 void sv_from_byte(String_View *sv, uint8_t byte);
-bool sv_to_byte(const String_View *sv, uint8_t *byte);
+bool sv_to_byte(String_View *sv, uint8_t *byte);
 
 // Huffman Table
 typedef struct {
@@ -250,7 +255,26 @@ void sv_alloc(String_View *sv, size_t size)
   };
 }
 
-void sv_concat(String_View *dst, String_View *src)
+void sv_rev(String_View *sv, size_t start_pos, size_t end_pos)
+{
+  assert(start_pos <= end_pos);
+  for(size_t i = 0; i < (end_pos - start_pos + 1) / 2; ++i) {
+    char ch = sv->str[start_pos + i];
+    sv->str[start_pos + i] = sv->str[end_pos - i];
+    sv->str[end_pos - i] = ch;
+  }
+}
+
+void sv_rev_bytes(String_View *sv)
+{
+  sv_rev(sv, 0, sv->size - 1);
+  for (size_t i = sv->size - 1; i >= U8_SIZE-1 && i < sv->size; i -= U8_SIZE) {
+    sv_rev(sv, i+1 - U8_SIZE, i);
+  }
+  sv_rev(sv, 0, sv->size % U8_SIZE - 1);
+}
+
+void sv_concat_sv(String_View *dst, String_View *src)
 {
   assert(dst->size + src->size < SV_CAPACITY);
   for (size_t i = 0; i < src->size; ++i) {
@@ -258,20 +282,46 @@ void sv_concat(String_View *dst, String_View *src)
   }
 }
 
+void sv_concat_file(FILE *file, String_View *src)
+{
+  uint8_t byte = 0;
+  while (src->size >= U8_SIZE) {
+    sv_to_byte(src, &byte);
+    printf("%zu: %02x\n", src->size, byte);
+    fwrite(&byte, sizeof(byte), 1, file);
+  }
+  printf("\n");
+}
+
+void sv_concat_file_path(const char *file_path, String_View *src)
+{
+  FILE *file = fopen(file_path, "ab");
+  if (file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
+    exit(1);
+  }
+
+  sv_concat_file(file, src);
+
+  fclose(file);
+}
+
 void sv_from_byte(String_View *sv, uint8_t byte)
 {
-  for (size_t i = 0; i < 8; ++i) {
+  for (size_t i = 0; i < U8_SIZE; ++i) {
     sv->str[sv->size++] = (((byte << i) & 0x80) >> 7) + '0';
   }
 }
 
-bool sv_to_byte(const String_View *sv, uint8_t *byte)
+bool sv_to_byte(String_View *sv, uint8_t *byte)
 {
-  if (sv->size >= 8) {
+  if (sv->size >= U8_SIZE) {
     *byte = 0;
-    for (size_t i = 0; i < 8; ++i) {
+    for (size_t i = 0; i < U8_SIZE; ++i) {
+      assert(sv->str[i] == '0' || sv->str[i] == '1');
       *byte = (*byte << 1) | (sv->str[i] - '0');
     }
+    sv->size -= U8_SIZE;
     return true;
   }
 
@@ -301,7 +351,7 @@ void in_order(String_View *sv, Node *tree, Table *table)
   if (tree->left == NULL && tree->right == NULL) {
     String_View value = {0};
     sv_alloc(&value, sv->size);
-    sv_concat(&value, sv);
+    sv_concat_sv(&value, sv);
     table->items[table->size++] = (Table_Item) {
       .byte = tree->freq.byte,
       .value = value,
@@ -374,8 +424,8 @@ void post_order(String_View *sv, Node *tree)
 // TODO: Introduce a method to devise the tree back from header file
 String_View get_header_info_from_tree(Node *tree)
 {
-  char *str = (char *) malloc(sizeof(char) * U8_CAPACITY * 10);
-  String_View sv = {.str = str, .size = 0};
+  String_View sv = {0};
+  sv_alloc(&sv, U8_CAPACITY * 10);
 
   post_order(&sv, tree);
   sv.str[sv.size++] = '0';
