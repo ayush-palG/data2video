@@ -88,9 +88,8 @@ typedef struct {
 
 void print_table(const Table *table);
 void free_table(Table *table);
-void in_order(String_View *sv, Node *node, Table *table);
-void node_to_table(Node *node, Table *table);
-void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
+void in_order(String_View *sv, Node *tree, Table *table);
+void tree_to_table(Node *tree, Table *table);
 void get_huffman_table_from_tree(Node *tree, Table *table);
 
 uint64_t get_file_size(const char *file_path);
@@ -296,29 +295,29 @@ void free_table(Table *table)
 }
 
 // TODO: Introduce in-order, post-order general traversals and then use them
-void in_order(String_View *sv, Node *node, Table *table)
+void in_order(String_View *sv, Node *tree, Table *table)
 {
-  if (node->left == NULL && node->right == NULL) {
-    char *value = (char *) malloc(sizeof(char) * sv->size + 1);
-    value[sv->size] = '\0';
-    memcpy(value, sv->str, sv->size);
+  if (tree->left == NULL && tree->right == NULL) {
+    String_View value = {0};
+    sv_alloc(&value, sv->size);
+    sv_concat(&value, sv);
     table->items[table->size++] = (Table_Item) {
-      .byte = node->freq.byte,
+      .byte = tree->freq.byte,
       .value = value,
     };
     return;
   }
 
   sv->str[sv->size++] = '0';
-  in_order(sv, node->left, table);
+  in_order(sv, tree->left, table);
   sv->size -= 1;
   
   sv->str[sv->size++] = '1';
-  in_order(sv, node->right, table);
+  in_order(sv, tree->right, table);
   sv->size -= 1;
 }
 
-void node_to_table(Node *node, Table *table)
+void tree_to_table(Node *tree, Table *table)
 {
   char *str = (char *) malloc(sizeof(char) * U8_CAPACITY);
   String_View sv = {.str = str, .size = 0};
@@ -336,7 +335,7 @@ void get_huffman_table_from_tree(Node *tree, Table *table)
   get_leaf_node_count_in_tree(tree, &leaf_node_count);
   
   table->items = (Table_Item *) malloc(sizeof(Table_Item) * leaf_node_count);
-  node_to_table(tree, table);
+  tree_to_table(tree, table);
 }
 
 uint64_t get_file_size(const char *file_path)
