@@ -7,12 +7,6 @@
 
 ### Dependencies [ffmpeg](https://www.ffmpeg.org)
 
-### Quick Start
-```console
-$ ./build.sh
-$ ./main
-```
-
 ### References:
 - [NIST AES-Paper](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf)
 - [Huffman Encoding and Data Compression](https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1126/handouts/220%20Huffman%20Encoding.pdf)

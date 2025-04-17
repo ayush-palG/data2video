@@ -78,6 +78,7 @@ void sv_concat_file(FILE *file, String_View *src);
 void sv_concat_file_path(const char *file_path, String_View *src);
 void sv_from_byte(String_View *sv, uint8_t byte);
 bool sv_to_byte(String_View *sv, uint8_t *byte);
+void sv_bytes_print(String_View *sv);
 
 // Huffman Table
 typedef struct {
@@ -304,6 +305,7 @@ void sv_concat_file_path(const char *file_path, String_View *src)
   fclose(file);
 }
 
+// TODO: rename it to sv_byte_to_bits
 void sv_from_byte(String_View *sv, uint8_t byte)
 {
   for (size_t i = 0; i < U8_SIZE; ++i) {
@@ -311,6 +313,7 @@ void sv_from_byte(String_View *sv, uint8_t byte)
   }
 }
 
+// TODO: rename it to sv_bits_to_byte
 bool sv_to_byte(String_View *sv, uint8_t *byte)
 {
   if (sv->size >= U8_SIZE) {
@@ -324,6 +327,20 @@ bool sv_to_byte(String_View *sv, uint8_t *byte)
   }
 
   return false;
+}
+
+void sv_bytes_print(String_View *sv)
+{
+  String_View sv_byte = {0};
+  sv_alloc(&sv_byte, U8_SIZE);
+  for (size_t i = 0; i < sv->size / U8_SIZE; ++i) {
+    uint8_t byte = sv->str[i];
+    sv_from_byte(&sv_byte, byte);
+    printf("%02x %.*s\n", byte, (int) sv_byte.size, sv_byte.str);
+    sv_byte.size = 0;
+  }
+  printf("\n");
+  free(sv_byte.str);
 }
 
 void print_table(const Table *table)
@@ -451,7 +468,7 @@ void print_file(const char *file_path)
   fclose(file);
 }
 
-// Complete the huffman encode using sv functions sv_to_byte, sv_from_byte, sv_concat
+// TODO: free all the heap allocations when they are of no-longer use
 void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
 {
   FILE *plain_file = fopen(plain_file_path, "rb");
@@ -473,12 +490,12 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
   get_huffman_table_from_tree(&tree, &table);
 
   String_View header_info = get_header_info_from_tree(&tree);
-  uint8_t header_size = header_info.size / 10;
+  uint8_t header_info_size = header_info.size / 10;
   uint64_t plain_file_size = get_file_size(plain_file_path);
 
   // Write the header_info into encoded_file
-  fwrite(&header_size, sizeof(uint8_t), 1, encoded_file);
-  fwrite(&plain_file_size, sizeof(uint64_t), 1, encoded_file);
+  fwrite(&header_info_size, sizeof(header_info_size), 1, encoded_file);
+  fwrite(&plain_file_size, sizeof(plain_file_size), 1, encoded_file);
   sv_concat_file(encoded_file, &header_info);
   free(header_info.str);
 
@@ -499,13 +516,43 @@ void huffman_encode(const char *plain_file_path, const char *encoded_file_path)
     sv.str[sv.size++] = '0';
   }
   sv_concat_file(encoded_file, &sv);
+  free(sv.str);
   
-  for (size_t i = 0; i < table.size; ++i) {
-    free(table.items[i].value.str);
-  }
-  free(table.items);
+  free_table(&table);
 
   fclose(plain_file);
+  fclose(encoded_file);
+}
+
+void huffman_decode(const char *encoded_file_path, const char *plain_file_path)
+{
+  FILE *encoded_file = fopen(encoded_file_path, "rb");
+  if (encoded_file == NULL) {
+    fprintf(stderr, "ERROR: could not open file %s: %s\n", encoded_file_path, strerror(errno));
+    exit(1);
+  }
+
+  (void) plain_file_path;
+  // FILE *plain_file = fopen(plain_file_path, "wb");
+  // if (plain_file == NULL) {
+  //   fprintf(stderr, "ERROR: could not open file %s: %s\n", plain_file_path, strerror(errno));
+  //   exit(1);
+  // }
+
+  String_View header_info = {0};
+  uint8_t header_file_size;
+  uint64_t plain_file_size;
+
+  fread(&header_file_size, sizeof(header_file_size), 1, encoded_file);
+  fread(&plain_file_size, sizeof(plain_file_size), 1, encoded_file);
+  sv_alloc(&header_info, header_file_size * 10);
+  header_info.size = header_file_size * 10;
+  fread(header_info.str, sizeof(*(header_info.str)), (header_info.size / U8_SIZE), encoded_file);
+  sv_bytes_print(&header_info);
+
+  // TODO: make the table/tree from the header_info huffman tree topology
+
+  // fclose(plain_file);
   fclose(encoded_file);
 }
 
