@@ -30,6 +30,9 @@
 #define U8_CAPACITY 258
 #define SV_CAPACITY (U8_CAPACITY * 2)
 
+#define SV_IMPLEMENTATION
+#include "SV.h"
+
 // Frequency
 typedef struct {
   uint8_t byte;
@@ -63,22 +66,6 @@ Node_List *freq_list_to_node_list(Freq_List *fl);
 void sort_node(Node_List *nl, size_t index);
 void get_leaf_node_count_in_tree(Node *tree, size_t *counter);
 void get_huffman_tree_from_file(const char *file_path, Node *tree);
-
-// String View
-typedef struct {
-  char *str;
-  size_t size;
-} String_View;
-
-void sv_alloc(String_View *sv, size_t size);
-void sv_rev(String_View *sv, size_t start_pos, size_t end_pos);
-void sv_rev_bytes(String_View *sv);
-void sv_concat_sv(String_View *dst, String_View *src);
-void sv_concat_file(FILE *file, String_View *src);
-void sv_concat_file_path(const char *file_path, String_View *src);
-void sv_from_byte(String_View *sv, uint8_t byte);
-bool sv_to_byte(String_View *sv, uint8_t *byte);
-void sv_bytes_print(String_View *sv);
 
 // Huffman Table
 typedef struct {
@@ -247,102 +234,6 @@ void get_huffman_tree_from_file(const char *file_path, Node *tree)
   free(nl);
 }
 
-void sv_alloc(String_View *sv, size_t size)
-{
-  *sv = (String_View) {
-    .str = (char *) malloc(sizeof(char) * size),
-    .size = 0,
-  };
-}
-
-void sv_rev(String_View *sv, size_t start_pos, size_t end_pos)
-{
-  assert(start_pos <= end_pos);
-  for(size_t i = 0; i < (end_pos - start_pos + 1) / 2; ++i) {
-    char ch = sv->str[start_pos + i];
-    sv->str[start_pos + i] = sv->str[end_pos - i];
-    sv->str[end_pos - i] = ch;
-  }
-}
-
-void sv_rev_bytes(String_View *sv)
-{
-  sv_rev(sv, 0, sv->size - 1);
-  for (size_t i = sv->size - 1; i >= U8_SIZE-1 && i < sv->size; i -= U8_SIZE) {
-    sv_rev(sv, i+1 - U8_SIZE, i);
-  }
-  sv_rev(sv, 0, sv->size % U8_SIZE - 1);
-}
-
-void sv_concat_sv(String_View *dst, String_View *src)
-{
-  assert(dst->size + src->size < SV_CAPACITY);
-  for (size_t i = 0; i < src->size; ++i) {
-    dst->str[dst->size++] = src->str[i];
-  }
-}
-
-void sv_concat_file(FILE *file, String_View *src)
-{
-  sv_rev_bytes(src);
-  uint8_t byte = 0;
-  while (src->size >= U8_SIZE) {
-    sv_to_byte(src, &byte);
-    fwrite(&byte, sizeof(byte), 1, file);
-  }
-}
-
-void sv_concat_file_path(const char *file_path, String_View *src)
-{
-  FILE *file = fopen(file_path, "ab");
-  if (file == NULL) {
-    fprintf(stderr, "ERROR: could not open file %s: %s\n", file_path, strerror(errno));
-    exit(1);
-  }
-
-  sv_concat_file(file, src);
-
-  fclose(file);
-}
-
-// TODO: rename it to sv_byte_to_bits
-void sv_from_byte(String_View *sv, uint8_t byte)
-{
-  for (size_t i = 0; i < U8_SIZE; ++i) {
-    sv->str[sv->size++] = (((byte << i) & 0x80) >> 7) + '0';
-  }
-}
-
-// TODO: rename it to sv_bits_to_byte
-bool sv_to_byte(String_View *sv, uint8_t *byte)
-{
-  if (sv->size >= U8_SIZE) {
-    *byte = 0;
-    for (size_t i = sv->size-U8_SIZE; i < sv->size; ++i) {
-      assert(sv->str[i] == '0' || sv->str[i] == '1');
-      *byte = (*byte << 1) | (sv->str[i] - '0');
-    }
-    sv->size -= U8_SIZE;
-    return true;
-  }
-
-  return false;
-}
-
-void sv_bytes_print(String_View *sv)
-{
-  String_View sv_byte = {0};
-  sv_alloc(&sv_byte, U8_SIZE);
-  for (size_t i = 0; i < sv->size / U8_SIZE; ++i) {
-    uint8_t byte = sv->str[i];
-    sv_from_byte(&sv_byte, byte);
-    printf("%02x %.*s\n", byte, (int) sv_byte.size, sv_byte.str);
-    sv_byte.size = 0;
-  }
-  printf("\n");
-  free(sv_byte.str);
-}
-
 void print_table(const Table *table)
 {
   for (size_t i = 0; i < table->size; ++i) {
@@ -427,7 +318,7 @@ void post_order(String_View *sv, Node *tree)
 {
   if (tree->left == NULL && tree->right == NULL) {
     sv->str[sv->size++] = '1';
-    sv_from_byte(sv, tree->freq.byte);
+    sv_byte_to_bits(sv, tree->freq.byte);
     return;
   }
 
@@ -548,7 +439,6 @@ void huffman_decode(const char *encoded_file_path, const char *plain_file_path)
   sv_alloc(&header_info, header_file_size * 10);
   header_info.size = header_file_size * 10;
   fread(header_info.str, sizeof(*(header_info.str)), (header_info.size / U8_SIZE), encoded_file);
-  sv_bytes_print(&header_info);
 
   // TODO: make the table/tree from the header_info huffman tree topology
 
