@@ -1,22 +1,30 @@
 #ifndef SV_H_
 #define SV_H_
 
+#define U8_SIZE 8
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <assert.h>
+
+// TODO: Introduce enum having members BITS and BYTES for the structure String_View
+
 typedef struct {
   char *str;
   size_t size;
   size_t capacity;
 } String_View;
 
-// TODO: sv_alloc would return String_View*
-// TODO: If sv_alloc returns String_View*, then create a func to free the allocated memory
-void sv_alloc(String_View *sv, size_t size);
+String_View sv_alloc(size_t size);
 
+// TODO: Once the String_Type enum introduced, change reverse functions accordingly
 void sv_rev(String_View *sv, size_t start_pos, size_t end_pos);
 void sv_rev_bytes(String_View *sv);
 
 void sv_concat_sv(String_View *dst, String_View *src);
 void sv_concat_file(FILE *file, String_View *src);
-void sv_concat_file_path(const char *file_path, String_View *src);
 
 void sv_byte_to_bits(String_View *sv, uint8_t byte);
 bool sv_bits_to_byte(String_View *sv, uint8_t *byte);
@@ -28,9 +36,9 @@ void sv_print_bytes(String_View *sv);
 
 #ifdef SV_IMPLEMENTATION
 
-void sv_alloc(String_View *sv, size_t size)
+String_View sv_alloc(size_t size)
 {
-  *sv = (String_View) {
+  return (String_View) {
     .str = (char *) malloc(sizeof(char) * size),
     .size = 0,
     .capacity = size,
@@ -75,7 +83,6 @@ void sv_concat_file(FILE *file, String_View *src)
   }
 }
 
-// TODO: Instead of adding the bits at the end of sv, alloc a new sv and add to it them.
 void sv_byte_to_bits(String_View *sv, uint8_t byte)
 {
   for (size_t i = 0; i < U8_SIZE; ++i) {
@@ -100,26 +107,21 @@ bool sv_bits_to_byte(String_View *sv, uint8_t *byte)
   return false;
 }
 
-void sv_bytes_to_bits(String_View *sv)
+String_View sv_bytes_to_bits(String_View *sv)
 {
-  sv_rev_bytes(sv);
-  String_View sv_byte = {0};
-  sv_alloc(&sv_byte, U8_SIZE);
-  for (size_t i = sv->size - 1; i < sv->size; --i) {
-    sv_byte_to_bits(&sv_byte, sv->str[i]);
-    for (size_t j = 0; j < U8_SIZE; ++j) {
-      sv->str[U8_SIZE*(i-1) + j] = sv_byte.str[j];
-    }
-    // sv->size += 7;
-    sv_byte.size = 0;
+  String_View sv_bytes = sv_alloc(sv->size * U8_SIZE);
+  
+  for (size_t i = 0; i < sv->size; ++i) {
+    sv_byte_to_bits(&sv_bytes, sv->str[i]);
+    // printf("%zu: %.*s\n", sv->capacity, (int) sv->capacity, sv->str);
   }
-  free(sv_byte.str);
+  
+  return sv_bytes;
 }
 
 void sv_print_bytes(String_View *sv)
 {
-  String_View sv_byte = {0};
-  sv_alloc(&sv_byte, U8_SIZE);
+  String_View sv_byte = sv_alloc(U8_SIZE);
   for (size_t i = 0; i < sv->size / U8_SIZE; ++i) {
     uint8_t byte = sv->str[i];
     sv_byte_to_bits(&sv_byte, byte);
